@@ -7,6 +7,18 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 
+const packageColor = {
+  A: 'pkgA',
+  B: 'pkgB',
+  C: 'pkgC',
+  D: 'pkgD',
+  F: 'pkgF',
+  G: 'pkgG',
+  I2: 'pkgI2',
+  PMEC: 'pkgPMEC',
+};
+
+
 type PackageCode = 'A' | 'B' | 'C' | 'D' | 'F' | 'G' | 'I2' | 'PMEC';
 type Role = 'All' | 'Contracts' | 'Finance' | 'Legal' | 'Project' | 'Operation' | 'PMEC';
 
@@ -214,7 +226,7 @@ export default function Page() {
                     <div>Value: <span className="tabular-nums">{currency(c.contractValue)}</span></div>
                   </div>
                 </div>
-                <Progress value={pctPaid(c)} />
+                <Progress value={pctPaid(c)} className={`bg-${packageColor[c.pkg]} h-2 rounded-full`} />
               </CardContent>
             </Card>
           ))}
@@ -231,9 +243,10 @@ export default function Page() {
                 <CardTitle>Package {p.pkg}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Progress value={p.used} label="Used" />
-                <Progress value={p.approved} label="Approved" />
-                <Progress value={p.pending} label="Pending" />
+<Progress value={p.used} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Used" />
+<Progress value={p.approved} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Approved" />
+<Progress value={p.pending} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Pending" />
+
               </CardContent>
             </Card>
           ))}
@@ -268,9 +281,12 @@ export default function Page() {
                       <TD className="font-medium">{co.id}</TD>
                       <TD><span className="badge">{co.pkg}</span></TD>
                       <TD className="max-w-[28ch] truncate">{co.title}</TD>
-                      <TD>
-                        <span className="badge">{co.status}</span>
-                      </TD>
+<TD>
+  <span className={`badge text-white bg-${packageColor[co.pkg]}`}>
+    {co.pkg}
+  </span>
+</TD>
+
                       <TD className="text-right tabular-nums">{currency(co.estimated)}</TD>
                       <TD className="text-right tabular-nums">{co.actual != null ? currency(co.actual) : '—'}</TD>
                       <TD className={"text-right tabular-nums " + (variance != null ? (variance > 0 ? "text-red-600" : "text-green-700") : "text-gray-400")}>
