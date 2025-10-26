@@ -8,7 +8,7 @@ module.exports = {
     extend: {
       colors: {
         pkgA:  '#2563EB', // Blue
-        pkgB:  '#059669', // Emerald Green
+        pkgB:  '#059669', // Emerald
         pkgC:  '#D97706', // Amber
         pkgD:  '#DC2626', // Red
         pkgF:  '#7C3AED', // Violet
@@ -20,3 +20,4 @@ module.exports = {
   },
   plugins: [],
 };
+
