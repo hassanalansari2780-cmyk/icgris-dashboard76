@@ -290,4 +290,15 @@ export default function Page() {
       </footer>
     </main>
   );
+  const packageColor = {
+  A: 'pkgA',
+  B: 'pkgB',
+  C: 'pkgC',
+  D: 'pkgD',
+  F: 'pkgF',
+  G: 'pkgG',
+  I2: 'pkgI2',
+  PMEC: 'pkgPMEC',
+};
+
 }
