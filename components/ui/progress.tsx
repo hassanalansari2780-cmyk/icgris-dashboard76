@@ -1,11 +1,11 @@
 import * as React from "react";
-import { clsx } from "clsx";
+import clsx from "clsx";
 
 type ProgressProps = {
   value: number;
   label?: string;
   className?: string;       // wrapper
-  trackClassName?: string;  // track (background line)
+  trackClassName?: string;  // track
   barClassName?: string;    // filled bar color
 };
 
@@ -34,4 +34,3 @@ export function Progress({
     </div>
   );
 }
-
