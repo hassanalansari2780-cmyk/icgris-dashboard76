@@ -1,21 +1,29 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        pkgA:  '#2563EB', // Blue
-        pkgB:  '#059669', // Emerald
-        pkgC:  '#D97706', // Amber
-        pkgD:  '#DC2626', // Red
-        pkgF:  '#7C3AED', // Violet
-        pkgG:  '#0D9488', // Teal
-        pkgI2: '#EA580C', // Orange
-        pkgPMEC: '#9333EA', // Purple
-      },
+{
+  "name": "icgris-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.6.2",
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0"
+  }
+}
+
     },
   },
   plugins: [],
