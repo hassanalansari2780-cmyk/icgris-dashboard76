@@ -7,39 +7,14 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 
-// 🎨 Color map for package identity
-// Each package key (A, B, C…) matches a color name we defined in tailwind.config.js
-const packageColor = {
-  A: 'pkgA',
-  B: 'pkgB',
-  C: 'pkgC',
-  D: 'pkgD',
-  F: 'pkgF',
-  G: 'pkgG',
-  I2: 'pkgI2',
-  PMEC: 'pkgPMEC',
-};
-
-const packageColor = {
-  A: 'pkgA',
-  B: 'pkgB',
-  C: 'pkgC',
-  D: 'pkgD',
-  F: 'pkgF',
-  G: 'pkgG',
-  I2: 'pkgI2',
-  PMEC: 'pkgPMEC',
-};
-
-
 type PackageCode = 'A' | 'B' | 'C' | 'D' | 'F' | 'G' | 'I2' | 'PMEC';
 type Role = 'All' | 'Contracts' | 'Finance' | 'Legal' | 'Project' | 'Operation' | 'PMEC';
 
 type Contract = {
   pkg: PackageCode;
   title: string;
-  contractValue: number; // in AED (example numbers for demo)
-  paidToDate: number; // in AED
+  contractValue: number; // AED
+  paidToDate: number; // AED
 };
 
 type Provisional = {
@@ -58,39 +33,62 @@ type ChangeOrder = {
   actual?: number | null; // AED
 };
 
-// --- Demo Static Data (you can edit here and redeploy) ---
+/** 🎨 Tailwind-safe class maps (full class names so Tailwind can see them at build time) */
+const PKG_BG: Record<PackageCode, string> = {
+  A: 'bg-pkgA',
+  B: 'bg-pkgB',
+  C: 'bg-pkgC',
+  D: 'bg-pkgD',
+  F: 'bg-pkgF',
+  G: 'bg-pkgG',
+  I2: 'bg-pkgI2',
+  PMEC: 'bg-pkgPMEC',
+};
+
+const PKG_BORDER: Record<PackageCode, string> = {
+  A: 'border-pkgA',
+  B: 'border-pkgB',
+  C: 'border-pkgC',
+  D: 'border-pkgD',
+  F: 'border-pkgF',
+  G: 'border-pkgG',
+  I2: 'border-pkgI2',
+  PMEC: 'border-pkgPMEC',
+};
+
+// --- Demo Static Data (editable) ---
 const CONTRACTS: Contract[] = [
-  { pkg: 'A', title: 'Package A - Systems', contractValue: 120_000_000, paidToDate: 48_000_000 },
-  { pkg: 'B', title: 'Package B - Track', contractValue: 95_000_000, paidToDate: 41_000_000 },
-  { pkg: 'C', title: 'Package C - Civil', contractValue: 180_000_000, paidToDate: 72_000_000 },
-  { pkg: 'D', title: 'Package D - Stations', contractValue: 85_000_000, paidToDate: 19_000_000 },
-  { pkg: 'F', title: 'Package F - Rolling Stock', contractValue: 210_000_000, paidToDate: 109_000_000 },
-  { pkg: 'G', title: 'Package G - O&M', contractValue: 60_000_000, paidToDate: 9_500_000 },
-  { pkg: 'I2', title: 'Package I2 - Integration', contractValue: 35_000_000, paidToDate: 11_000_000 },
-  { pkg: 'PMEC', title: 'PMEC - Consulting', contractValue: 18_000_000, paidToDate: 7_000_000 },
+  { pkg: 'A', title: 'Package A - Systems',        contractValue: 120_000_000, paidToDate: 48_000_000 },
+  { pkg: 'B', title: 'Package B - Track',          contractValue: 95_000_000,  paidToDate: 41_000_000 },
+  { pkg: 'C', title: 'Package C - Civil',          contractValue: 180_000_000, paidToDate: 72_000_000 },
+  { pkg: 'D', title: 'Package D - Stations',       contractValue: 85_000_000,  paidToDate: 19_000_000 },
+  { pkg: 'F', title: 'Package F - Rolling Stock',  contractValue: 210_000_000, paidToDate: 109_000_000 },
+  { pkg: 'G', title: 'Package G - O&M',            contractValue: 60_000_000,  paidToDate: 9_500_000 },
+  { pkg: 'I2', title: 'Package I2 - Integration',  contractValue: 35_000_000,  paidToDate: 11_000_000 },
+  { pkg: 'PMEC', title: 'PMEC - Consulting',       contractValue: 18_000_000,  paidToDate: 7_000_000 },
 ];
 
 const PROVISIONALS: Provisional[] = [
-  { pkg: 'A', used: 22, approved: 35, pending: 12 },
-  { pkg: 'B', used: 31, approved: 12, pending: 25 },
-  { pkg: 'C', used: 44, approved: 30, pending: 10 },
-  { pkg: 'D', used: 10, approved: 18, pending: 22 },
-  { pkg: 'F', used: 51, approved: 21, pending: 9  },
-  { pkg: 'G', used: 6,  approved: 9,  pending: 19 },
-  { pkg: 'I2', used: 28, approved: 7,  pending: 12 },
-  { pkg: 'PMEC', used: 12, approved: 10, pending: 5 },
+  { pkg: 'A',   used: 22, approved: 35, pending: 12 },
+  { pkg: 'B',   used: 31, approved: 12, pending: 25 },
+  { pkg: 'C',   used: 44, approved: 30, pending: 10 },
+  { pkg: 'D',   used: 10, approved: 18, pending: 22 },
+  { pkg: 'F',   used: 51, approved: 21, pending: 9  },
+  { pkg: 'G',   used: 6,  approved: 9,  pending: 19 },
+  { pkg: 'I2',  used: 28, approved: 7,  pending: 12 },
+  { pkg: 'PMEC',used: 12, approved: 10, pending: 5  },
 ];
 
 const COS: ChangeOrder[] = [
-  { id: 'CO-A-001', pkg: 'A', title: 'Scope Interface Adjustment', status: 'In Review', estimated: 3_200_000, actual: null },
-  { id: 'CO-A-002', pkg: 'A', title: 'Cybersecurity Upgrade', status: 'Proposed', estimated: 1_150_000, actual: null },
-  { id: 'CO-B-001', pkg: 'B', title: 'Ballast Spec Update', status: 'Approved', estimated: 2_000_000, actual: 1_850_000 },
-  { id: 'CO-C-004', pkg: 'C', title: 'Retaining Wall Change', status: 'Approved', estimated: 4_900_000, actual: 5_200_000 },
-  { id: 'CO-D-003', pkg: 'D', title: 'Station Canopy Redesign', status: 'In Review', estimated: 2_700_000, actual: null },
-  { id: 'CO-F-002', pkg: 'F', title: 'Brake System Mod', status: 'Proposed', estimated: 6_000_000, actual: null },
-  { id: 'CO-G-005', pkg: 'G', title: 'Maintenance Tooling', status: 'Approved', estimated: 800_000, actual: 780_000 },
-  { id: 'CO-I2-002', pkg: 'I2', title: 'Interface Test Extension', status: 'Proposed', estimated: 450_000, actual: null },
-  { id: 'CO-PMEC-001', pkg: 'PMEC', title: 'Additional Studies', status: 'Approved', estimated: 300_000, actual: 290_000 },
+  { id: 'CO-A-001',   pkg: 'A',   title: 'Scope Interface Adjustment', status: 'In Review', estimated: 3_200_000, actual: null },
+  { id: 'CO-A-002',   pkg: 'A',   title: 'Cybersecurity Upgrade',     status: 'Proposed',  estimated: 1_150_000, actual: null },
+  { id: 'CO-B-001',   pkg: 'B',   title: 'Ballast Spec Update',       status: 'Approved',  estimated: 2_000_000, actual: 1_850_000 },
+  { id: 'CO-C-004',   pkg: 'C',   title: 'Retaining Wall Change',     status: 'Approved',  estimated: 4_900_000, actual: 5_200_000 },
+  { id: 'CO-D-003',   pkg: 'D',   title: 'Station Canopy Redesign',   status: 'In Review', estimated: 2_700_000, actual: null },
+  { id: 'CO-F-002',   pkg: 'F',   title: 'Brake System Mod',          status: 'Proposed',  estimated: 6_000_000, actual: null },
+  { id: 'CO-G-005',   pkg: 'G',   title: 'Maintenance Tooling',       status: 'Approved',  estimated: 800_000,   actual: 780_000 },
+  { id: 'CO-I2-002',  pkg: 'I2',  title: 'Interface Test Extension',  status: 'Proposed',  estimated: 450_000,   actual: null },
+  { id: 'CO-PMEC-001',pkg: 'PMEC',title: 'Additional Studies',        status: 'Approved',  estimated: 300_000,   actual: 290_000 },
 ];
 
 const ROLES: Role[] = ['All', 'Contracts', 'Finance', 'Legal', 'Project', 'Operation', 'PMEC'];
@@ -227,7 +225,7 @@ export default function Page() {
         <h2 className="section-title">Payments by Contract</h2>
         <div className="grid-cards">
           {filteredContracts.map(c => (
-            <Card key={c.pkg}>
+            <Card key={c.pkg} className={`border-t-4 ${PKG_BORDER[c.pkg]} bg-white`}>
               <CardHeader>
                 <CardTitle>{c.title}</CardTitle>
               </CardHeader>
@@ -239,7 +237,7 @@ export default function Page() {
                     <div>Value: <span className="tabular-nums">{currency(c.contractValue)}</span></div>
                   </div>
                 </div>
-                <Progress value={pctPaid(c)} className={`bg-${packageColor[c.pkg]} h-2 rounded-full`} />
+                <Progress value={pctPaid(c)} barClassName={PKG_BG[c.pkg]} />
               </CardContent>
             </Card>
           ))}
@@ -251,15 +249,14 @@ export default function Page() {
         <h2 className="section-title">Provisional Sum Utilization</h2>
         <div className="grid-cards">
           {filteredProv.map(p => (
-            <Card key={p.pkg}>
+            <Card key={p.pkg} className={`border-t-4 ${PKG_BORDER[p.pkg]} bg-white`}>
               <CardHeader>
                 <CardTitle>Package {p.pkg}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-<Progress value={p.used} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Used" />
-<Progress value={p.approved} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Approved" />
-<Progress value={p.pending} className={`bg-${packageColor[p.pkg]} h-2 rounded-full`} label="Pending" />
-
+                <Progress value={p.used}     barClassName={PKG_BG[p.pkg]} label="Used" />
+                <Progress value={p.approved} barClassName={PKG_BG[p.pkg]} label="Approved" />
+                <Progress value={p.pending}  barClassName={PKG_BG[p.pkg]} label="Pending" />
               </CardContent>
             </Card>
           ))}
@@ -292,14 +289,13 @@ export default function Page() {
                   return (
                     <TR key={co.id}>
                       <TD className="font-medium">{co.id}</TD>
-                      <TD><span className="badge">{co.pkg}</span></TD>
+                      <TD>
+                        <span className={`badge text-white ${PKG_BG[co.pkg]}`}>{co.pkg}</span>
+                      </TD>
                       <TD className="max-w-[28ch] truncate">{co.title}</TD>
-<TD>
-  <span className={`badge text-white bg-${packageColor[co.pkg]}`}>
-    {co.pkg}
-  </span>
-</TD>
-
+                      <TD>
+                        <span className="badge">{co.status}</span>
+                      </TD>
                       <TD className="text-right tabular-nums">{currency(co.estimated)}</TD>
                       <TD className="text-right tabular-nums">{co.actual != null ? currency(co.actual) : '—'}</TD>
                       <TD className={"text-right tabular-nums " + (variance != null ? (variance > 0 ? "text-red-600" : "text-green-700") : "text-gray-400")}>
@@ -319,5 +315,5 @@ export default function Page() {
       </footer>
     </main>
   );
-
 }
+
