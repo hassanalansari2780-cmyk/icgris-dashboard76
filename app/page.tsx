@@ -7,6 +7,19 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 
+// 🎨 Color map for package identity
+// Each package key (A, B, C…) matches a color name we defined in tailwind.config.js
+const packageColor = {
+  A: 'pkgA',
+  B: 'pkgB',
+  C: 'pkgC',
+  D: 'pkgD',
+  F: 'pkgF',
+  G: 'pkgG',
+  I2: 'pkgI2',
+  PMEC: 'pkgPMEC',
+};
+
 const packageColor = {
   A: 'pkgA',
   B: 'pkgB',
@@ -306,15 +319,5 @@ export default function Page() {
       </footer>
     </main>
   );
-  const packageColor = {
-  A: 'pkgA',
-  B: 'pkgB',
-  C: 'pkgC',
-  D: 'pkgD',
-  F: 'pkgF',
-  G: 'pkgG',
-  I2: 'pkgI2',
-  PMEC: 'pkgPMEC',
-};
 
 }
