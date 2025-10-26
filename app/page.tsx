@@ -12,6 +12,8 @@ import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 ============================== */
 type PackageCode = 'A' | 'B' | 'C' | 'D' | 'F' | 'G' | 'I2' | 'PMEC';
 type Role = 'All' | 'Contracts' | 'Finance' | 'Legal' | 'Project' | 'Operation' | 'PMEC';
+type COStatus = 'All' | 'Proposed' | 'In Review' | 'Approved' | 'Rejected';
+type ClaimStatus = 'All' | 'Submitted' | 'In Review' | 'Approved' | 'Rejected';
 
 type Contract = {
   pkg: PackageCode;
@@ -31,7 +33,7 @@ type ChangeOrder = {
   id: string;
   pkg: PackageCode;
   title: string;
-  status: 'Proposed' | 'Approved' | 'Rejected' | 'In Review';
+  status: Exclude<COStatus, 'All'>;
   estimated: number; // AED
   actual?: number | null; // AED
 };
@@ -40,7 +42,7 @@ type Claim = {
   id: string;
   pkg: PackageCode;
   title: string;
-  status: 'Submitted' | 'In Review' | 'Approved' | 'Rejected';
+  status: Exclude<ClaimStatus, 'All'>;
   claimed: number;           // AED
   certified?: number | null; // AED
   daysOpen: number;          // aging
@@ -141,23 +143,31 @@ export default function Page() {
   const ROLES: Role[] = ['All', 'Contracts', 'Finance', 'Legal', 'Project', 'Operation', 'PMEC'];
   const PACKAGES: PackageCode[] = ['A', 'B', 'C', 'D', 'F', 'G', 'I2', 'PMEC'];
 
+  // Global filters
   const [role, setRole] = React.useState<Role>('All');
   const [activePkgs, setActivePkgs] = React.useState<PackageCode[]>([...PACKAGES]);
   const [search, setSearch] = React.useState<string>('');
 
+  // Status filters
+  const [coStatus, setCoStatus] = React.useState<COStatus>('All');
+  const [claimStatus, setClaimStatus] = React.useState<ClaimStatus>('All');
+
+  // Filtered datasets (respect package, search, and status filters)
   const filteredContracts = CONTRACTS
     .filter(c => activePkgs.includes(c.pkg))
     .filter(c => c.title.toLowerCase().includes(search.toLowerCase()));
 
   const filteredCOs = COS
     .filter(co => activePkgs.includes(co.pkg))
-    .filter(co => co.title.toLowerCase().includes(search.toLowerCase()));
+    .filter(co => co.title.toLowerCase().includes(search.toLowerCase()))
+    .filter(co => coStatus === 'All' || co.status === coStatus);
 
   const filteredProv = PROVISIONALS.filter(p => activePkgs.includes(p.pkg));
 
   const filteredClaims = CLAIMS
     .filter(cl => activePkgs.includes(cl.pkg))
-    .filter(cl => cl.title.toLowerCase().includes(search.toLowerCase()));
+    .filter(cl => cl.title.toLowerCase().includes(search.toLowerCase()))
+    .filter(cl => claimStatus === 'All' || cl.status === claimStatus);
 
   // Summaries
   const totalContract = sum(filteredContracts, c => c.contractValue);
@@ -324,6 +334,22 @@ export default function Page() {
           <h2 className="section-title">Change Orders (COs)</h2>
           <div className="text-xs text-gray-600">Each CO includes Estimated and Actual cost.</div>
         </div>
+
+        {/* CO Status Filter */}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <span>Filter by Status:</span>
+          {(['All','Proposed','In Review','Approved','Rejected'] as COStatus[]).map(st => (
+            <Button
+              key={st}
+              size="sm"
+              variant={coStatus === st ? 'primary' : 'secondary'}
+              onClick={() => setCoStatus(st)}
+            >
+              {st}
+            </Button>
+          ))}
+        </div>
+
         <Card>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -367,6 +393,22 @@ export default function Page() {
           <h2 className="section-title">Claims</h2>
           <div className="text-xs text-gray-600">Claimed vs Certified amounts and aging.</div>
         </div>
+
+        {/* Claims Status Filter */}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <span>Filter by Status:</span>
+          {(['All','Submitted','In Review','Approved','Rejected'] as ClaimStatus[]).map(st => (
+            <Button
+              key={st}
+              size="sm"
+              variant={claimStatus === st ? 'primary' : 'secondary'}
+              onClick={() => setClaimStatus(st)}
+            >
+              {st}
+            </Button>
+          ))}
+        </div>
+
         <Card>
           <CardContent className="overflow-x-auto">
             <Table>
