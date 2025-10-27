@@ -30,3 +30,14 @@ html, body {
 .grid-cards {
   @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
 }
+/* Dark mode base */
+.dark body {
+  @apply bg-gray-950 text-gray-100;
+}
+.dark .kpi,
+.dark .badge,
+.dark .card,
+.dark .section-title {
+  /* keep white cards but slightly darker borders if you prefer dark cards:
+     swap bg-white -> bg-gray-900 and border-gray-200 -> border-gray-800 */
+}
