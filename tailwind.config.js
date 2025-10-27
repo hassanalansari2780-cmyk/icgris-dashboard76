@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -7,17 +8,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        pkgA:  "#2563EB", // Blue
-        pkgB:  "#059669", // Emerald
-        pkgC:  "#D97706", // Amber
-        pkgD:  "#DC2626", // Red
-        pkgF:  "#7C3AED", // Violet
-        pkgG:  "#0D9488", // Teal
-        pkgI2: "#EA580C", // Orange
-        pkgPMEC: "#9333EA" // Purple
+        pkgA:  "#2563EB",
+        pkgB:  "#059669",
+        pkgC:  "#D97706",
+        pkgD:  "#DC2626",
+        pkgF:  "#7C3AED",
+        pkgG:  "#0D9488",
+        pkgI2: "#EA580C",
+        pkgPMEC: "#9333EA"
       }
     }
   },
   plugins: []
 };
-
