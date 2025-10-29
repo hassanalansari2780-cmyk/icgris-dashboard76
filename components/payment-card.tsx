@@ -1,8 +1,9 @@
 "use client";
 import * as React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
+import clsx from "clsx";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 type IPCRow = {
   pkg: string;
@@ -51,7 +52,7 @@ export default function PaymentCard({
         <CardTitle className="text-sm flex items-center justify-between">
           <span>{title}</span>
           <div className="flex items-center gap-2">
-            <span className={`inline-block h-3 w-3 rounded-full ${colorClass}`} />
+            <span className={clsx("inline-block h-3 w-3 rounded-full", colorClass)} />
             <Button size="sm" variant="outline" onClick={() => setOpen(v => !v)}>
               {open ? "Hide details" : "Details"}
             </Button>
