@@ -8,7 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Table, Tbody, Thead, Tr, Th, Td } from "@/components/ui/table";
+// ---- Lightweight table wrappers (local, to avoid export name mismatch) ----
+const Table = (p: React.HTMLAttributes<HTMLTableElement>) => (
+  <table {...p} className={clsx("w-full text-sm", p.className)} />
+);
+const Thead = (p: React.HTMLAttributes<HTMLTableSectionElement>) => (
+  <thead {...p} className={clsx("bg-slate-50", p.className)} />
+);
+const Tbody = (p: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...p} />;
+const Tr = (p: React.HTMLAttributes<HTMLTableRowElement>) => (
+  <tr {...p} className={clsx("border-b last:border-b-0", p.className)} />
+);
+const Th = (p: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+  <th
+    {...p}
+    className={clsx(
+      "px-4 py-3 text-left font-medium text-slate-600 whitespace-nowrap",
+      p.className
+    )}
+  />
+);
+const Td = (p: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+  <td
+    {...p}
+    className={clsx("px-4 py-3 align-middle whitespace-nowrap", p.className)}
+  />
+);
 
 // ------------------ Types ------------------
 type Contract = {
