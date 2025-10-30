@@ -19,23 +19,43 @@ const fmtDate = (iso: string) => {
   });
 };
 
-type Status = "Proposed" | "In Review" | "Approved" | "Rejected" | "Submitted" | "Certified";
+type Status =
+  | "Proposed"
+  | "In Review"
+  | "Approved"
+  | "Rejected"
+  | "Submitted"
+  | "Certified";
 
 /** --------------------------
  * Small UI Primitives
  * -------------------------- */
-const Card = ({ children, className = "" }: React.PropsWithChildren<{ className?: string }>) => (
-  <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}>{children}</div>
+const Card = ({
+  children,
+  className = "",
+}: React.PropsWithChildren<{ className?: string }>) => (
+  <div className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}>
+    {children}
+  </div>
 );
 
-const CardHeader = ({ title, right }: { title?: string; right?: React.ReactNode }) => (
+const CardHeader = ({
+  title,
+  right,
+}: {
+  title?: string;
+  right?: React.ReactNode;
+}) => (
   <div className="flex items-center justify-between px-5 py-4">
     {title ? <h3 className="font-semibold text-gray-900">{title}</h3> : <div />}
     {right}
   </div>
 );
 
-const CardBody = ({ children, className = "" }: React.PropsWithChildren<{ className?: string }>) => (
+const CardBody = ({
+  children,
+  className = "",
+}: React.PropsWithChildren<{ className?: string }>) => (
   <div className={`px-5 pb-5 ${className}`}>{children}</div>
 );
 
@@ -47,9 +67,7 @@ const Pill = ({
   <button
     onClick={onClick}
     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-      active
-        ? "bg-gray-900 text-white"
-        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+      active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
     }`}
   >
     {children}
@@ -87,9 +105,18 @@ const Progress = ({ value }: { value: number }) => (
 type IPC = {
   id: string;
   date: string; // ISO
-  claimed?: number | null; // NEW for your request
-  certified?: number | null;
+  claimed?: number | null; // Claimed (requested)
+  certified?: number | null; // Certified (approved)
   status: Status;
+};
+
+type AdvancePayment = {
+  amount: number;
+  recovered: number;
+  balance: number;
+  status: "Not Started" | "Ongoing" | "Fully Recovered";
+  guaranteeNo?: string;
+  startIPC?: string;
 };
 
 type PaymentPkg = {
@@ -99,6 +126,7 @@ type PaymentPkg = {
   paid: number;
   color: string;
   ipcs: IPC[];
+  ap: AdvancePayment; // NEW
 };
 
 const payments: PaymentPkg[] = [
@@ -112,6 +140,14 @@ const payments: PaymentPkg[] = [
       { id: "IPC 05", date: "2025-09-20", claimed: 360000, certified: 325000, status: "Certified" },
       { id: "IPC 06", date: "2025-10-21", claimed: 525000, certified: 510207, status: "Certified" },
     ],
+    ap: {
+      amount: 2_000_000,
+      recovered: 835_207,
+      balance: 1_164_793,
+      status: "Ongoing",
+      guaranteeNo: "HSBC-APG-0001",
+      startIPC: "IPC 05",
+    },
   },
   {
     id: "B",
@@ -123,6 +159,14 @@ const payments: PaymentPkg[] = [
       { id: "IPC 03", date: "2025-08-11", claimed: 410000, certified: 390000, status: "Certified" },
       { id: "IPC 04", date: "2025-09-27", claimed: 275000, certified: 260000, status: "Certified" },
     ],
+    ap: {
+      amount: 1_500_000,
+      recovered: 650_000,
+      balance: 850_000,
+      status: "Ongoing",
+      guaranteeNo: "HSBC-APG-0002",
+      startIPC: "IPC 03",
+    },
   },
   {
     id: "C",
@@ -130,9 +174,8 @@ const payments: PaymentPkg[] = [
     value: 180_000_000,
     paid: 72_000_000,
     color: "ring-orange-600",
-    ipcs: [
-      { id: "IPC 07", date: "2025-08-30", claimed: 900000, certified: 870000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 07", date: "2025-08-30", claimed: 900000, certified: 870000, status: "Certified" }],
+    ap: { amount: 2_700_000, recovered: 2_700_000, balance: 0, status: "Fully Recovered", guaranteeNo: "HSBC-APG-0003", startIPC: "IPC 06" },
   },
   {
     id: "D",
@@ -140,9 +183,8 @@ const payments: PaymentPkg[] = [
     value: 85_000_000,
     paid: 19_000_000,
     color: "ring-red-600",
-    ipcs: [
-      { id: "IPC 05", date: "2025-07-12", claimed: 220000, certified: 200000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 05", date: "2025-07-12", claimed: 220000, certified: 200000, status: "Certified" }],
+    ap: { amount: 1_000_000, recovered: 240_000, balance: 760_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0004", startIPC: "IPC 04" },
   },
   {
     id: "F",
@@ -150,9 +192,8 @@ const payments: PaymentPkg[] = [
     value: 210_000_000,
     paid: 109_000_000,
     color: "ring-violet-600",
-    ipcs: [
-      { id: "IPC 10", date: "2025-09-05", claimed: 1_200_000, certified: 1_150_000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 10", date: "2025-09-05", claimed: 1_200_000, certified: 1_150_000, status: "Certified" }],
+    ap: { amount: 3_500_000, recovered: 1_500_000, balance: 2_000_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0005", startIPC: "IPC 08" },
   },
   {
     id: "G",
@@ -160,9 +201,8 @@ const payments: PaymentPkg[] = [
     value: 60_000_000,
     paid: 9_500_000,
     color: "ring-teal-600",
-    ipcs: [
-      { id: "IPC 02", date: "2025-10-10", claimed: 300000, certified: 290000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 02", date: "2025-10-10", claimed: 300000, certified: 290000, status: "Certified" }],
+    ap: { amount: 800_000, recovered: 80_000, balance: 720_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0006", startIPC: "IPC 02" },
   },
   {
     id: "I2",
@@ -170,9 +210,8 @@ const payments: PaymentPkg[] = [
     value: 35_000_000,
     paid: 11_000_000,
     color: "ring-orange-600",
-    ipcs: [
-      { id: "IPC 04", date: "2025-09-18", claimed: 450000, certified: 430000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 04", date: "2025-09-18", claimed: 450000, certified: 430000, status: "Certified" }],
+    ap: { amount: 500_000, recovered: 0, balance: 500_000, status: "Not Started", guaranteeNo: "HSBC-APG-0007" },
   },
   {
     id: "PMEC",
@@ -180,9 +219,8 @@ const payments: PaymentPkg[] = [
     value: 18_000_000,
     paid: 7_000_000,
     color: "ring-violet-600",
-    ipcs: [
-      { id: "IPC 06", date: "2025-10-08", claimed: 200000, certified: 190000, status: "Certified" },
-    ],
+    ipcs: [{ id: "IPC 06", date: "2025-10-08", claimed: 200000, certified: 190000, status: "Certified" }],
+    ap: { amount: 250_000, recovered: 190_000, balance: 60_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0008", startIPC: "IPC 05" },
   },
 ];
 
@@ -229,7 +267,7 @@ const claims: Claim[] = [
 ];
 
 /** --------------------------
- * IPCs Modal
+ * IPCs + Advance Payment Modal
  * -------------------------- */
 function IPCsModal({
   open,
@@ -240,14 +278,26 @@ function IPCsModal({
   onClose: () => void;
   pkg: PaymentPkg | null;
 }) {
+  const [tab, setTab] = React.useState<"ipcs" | "ap">("ipcs");
+  React.useEffect(() => {
+    if (open) setTab("ipcs");
+  }, [open]);
+
   if (!open || !pkg) return null;
+
+  // AP status visual color
+  const apColor =
+    pkg.ap.status === "Fully Recovered"
+      ? "text-emerald-700"
+      : pkg.ap.status === "Ongoing"
+      ? "text-amber-700"
+      : "text-gray-700";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h3 className="text-lg font-semibold">
-            {pkg.title} — IPCs
-          </h3>
+          <h3 className="text-lg font-semibold">{pkg.title}</h3>
           <button
             onClick={onClose}
             className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
@@ -255,33 +305,130 @@ function IPCsModal({
             Close
           </button>
         </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 border-b px-6 pt-3">
+          <button
+            onClick={() => setTab("ipcs")}
+            className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${
+              tab === "ipcs" ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-500"
+            }`}
+          >
+            IPCs
+          </button>
+          <button
+            onClick={() => setTab("ap")}
+            className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${
+              tab === "ap" ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-500"
+            }`}
+          >
+            Advance Payment
+          </button>
+        </div>
+
+        {/* Content */}
         <div className="px-6 py-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-sm text-gray-600">
-                  <th className="py-3">IPC No.</th>
-                  <th className="py-3">Date</th>
-                  <th className="py-3">Claimed</th> {/* NEW */}
-                  <th className="py-3">Certified</th>
-                  <th className="py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pkg.ipcs.map((r) => (
-                  <tr key={r.id} className="border-t text-sm">
-                    <td className="py-3 font-medium">{r.id}</td>
-                    <td className="py-3">{fmtDate(r.date)}</td>
-                    <td className="py-3">{fmtCurr(r.claimed)}</td>
-                    <td className="py-3">{fmtCurr(r.certified)}</td>
-                    <td className="py-3">
-                      <StatusPill status={r.status} />
-                    </td>
+          {tab === "ipcs" ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-sm text-gray-600">
+                    <th className="py-3">IPC No.</th>
+                    <th className="py-3">Date</th>
+                    <th className="py-3">Claimed</th>
+                    <th className="py-3">Certified</th>
+                    <th className="py-3">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pkg.ipcs.map((r) => (
+                    <tr key={r.id} className="border-t text-sm">
+                      <td className="py-3 font-medium">{r.id}</td>
+                      <td className="py-3">{fmtDate(r.date)}</td>
+                      <td className="py-3">{fmtCurr(r.claimed)}</td>
+                      <td className="py-3">{fmtCurr(r.certified)}</td>
+                      <td className="py-3">
+                        <StatusPill status={r.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary tiles */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader title="Advance Amount" />
+                  <CardBody>
+                    <div className="text-xl font-bold">{fmtCurr(pkg.ap.amount)}</div>
+                  </CardBody>
+                </Card>
+                <Card>
+                  <CardHeader title="Recovered to Date" />
+                  <CardBody>
+                    <div className="text-xl font-bold">{fmtCurr(pkg.ap.recovered)}</div>
+                  </CardBody>
+                </Card>
+                <Card>
+                  <CardHeader title="Balance" />
+                  <CardBody>
+                    <div className="text-xl font-bold">{fmtCurr(pkg.ap.balance)}</div>
+                  </CardBody>
+                </Card>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-6 text-sm">
+                <div>
+                  <span className="text-gray-600">Status: </span>
+                  <span className={`font-semibold ${apColor}`}>{pkg.ap.status}</span>
+                </div>
+                {pkg.ap.guaranteeNo && (
+                  <div>
+                    <span className="text-gray-600">Guarantee: </span>
+                    <span className="font-semibold">{pkg.ap.guaranteeNo}</span>
+                  </div>
+                )}
+                {pkg.ap.startIPC && (
+                  <div>
+                    <span className="text-gray-600">Recovery started from: </span>
+                    <span className="font-semibold">{pkg.ap.startIPC}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tiny breakdown list (optional) */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-sm text-gray-600">
+                      <th className="py-3">Reference</th>
+                      <th className="py-3">Description</th>
+                      <th className="py-3">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t text-sm">
+                      <td className="py-3">AP Granted</td>
+                      <td className="py-3">Advance payment principal</td>
+                      <td className="py-3">{fmtCurr(pkg.ap.amount)}</td>
+                    </tr>
+                    <tr className="border-t text-sm">
+                      <td className="py-3">Recovered</td>
+                      <td className="py-3">Deductions across IPCs</td>
+                      <td className="py-3">{fmtCurr(pkg.ap.recovered)}</td>
+                    </tr>
+                    <tr className="border-t text-sm">
+                      <td className="py-3">Balance</td>
+                      <td className="py-3">Remaining to be recovered</td>
+                      <td className="py-3">{fmtCurr(pkg.ap.balance)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -292,7 +439,6 @@ function IPCsModal({
  * Main Page
  * -------------------------- */
 export default function Page() {
-  // role/package filters (visual only here)
   const [role, setRole] = React.useState<string>("All");
   const [selectedPkgs, setSelectedPkgs] = React.useState<PaymentPkg["id"][]>(
     ["A", "B", "C", "D", "F", "G", "I2", "PMEC"]
@@ -314,13 +460,15 @@ export default function Page() {
   const totalPaid = visiblePkgs.reduce((s, p) => s + p.paid, 0);
   const percentPaid = (totalPaid / totalValue) * 100;
 
-  const cosFiltered = cos.filter((c) =>
-    (selectedPkgs.includes(c.pkg) &&
-     (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true))
+  const cosFiltered = cos.filter(
+    (c) =>
+      selectedPkgs.includes(c.pkg) &&
+      (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true)
   );
-  const claimsFiltered = claims.filter((c) =>
-    (selectedPkgs.includes(c.pkg) &&
-     (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true))
+  const claimsFiltered = claims.filter(
+    (c) =>
+      selectedPkgs.includes(c.pkg) &&
+      (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true)
   );
 
   const togglePkg = (id: PaymentPkg["id"]) => {
@@ -329,7 +477,16 @@ export default function Page() {
     );
   };
 
-  const allPkgs = ["A", "B", "C", "D", "F", "G", "I2", "PMEC"] as PaymentPkg["id"][];
+  const allPkgs = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "F",
+    "G",
+    "I2",
+    "PMEC",
+  ] as PaymentPkg["id"][];
 
   return (
     <div className="min-h-screen bg-white">
@@ -348,11 +505,13 @@ export default function Page() {
           <CardBody className="pt-5">
             <div className="flex flex-wrap items-center gap-3">
               <div className="mr-2 font-semibold">Role:</div>
-              {["All", "Contracts", "Finance", "Legal", "Project", "Operation", "PMEC"].map((r) => (
-                <Pill key={r} active={role === r} onClick={() => setRole(r)}>
-                  {r}
-                </Pill>
-              ))}
+              {["All", "Contracts", "Finance", "Legal", "Project", "Operation", "PMEC"].map(
+                (r) => (
+                  <Pill key={r} active={role === r} onClick={() => setRole(r)}>
+                    {r}
+                  </Pill>
+                )
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -395,14 +554,11 @@ export default function Page() {
                 />
                 <div className="hidden items-center gap-2 md:flex">
                   {(["All", "Last 30d", "Last 90d", "YTD"] as const).map((t) => {
-                    const key = t === "All" ? "All" : t.includes("30") ? "30d" : t.includes("90") ? "90d" : "YTD";
-                    const active = (time === key);
+                    const key =
+                      t === "All" ? "All" : t.includes("30") ? "30d" : t.includes("90") ? "90d" : "YTD";
+                    const active = time === (key as any);
                     return (
-                      <Pill
-                        key={t}
-                        active={active}
-                        onClick={() => setTime(key as any)}
-                      >
+                      <Pill key={t} active={active} onClick={() => setTime(key as any)}>
                         {t}
                       </Pill>
                     );
@@ -427,8 +583,12 @@ export default function Page() {
               <div className="text-2xl font-bold">{fmtCurr(totalPaid)}</div>
               <div className="mt-2 text-sm text-gray-500">Overall % paid</div>
               <div className="mt-1 flex items-center gap-3">
-                <div className="w-full"><Progress value={(totalPaid / totalValue) * 100} /></div>
-                <div className="w-12 text-right text-sm font-semibold">{fmtPct(percentPaid)}</div>
+                <div className="w-full">
+                  <Progress value={(totalPaid / totalValue) * 100} />
+                </div>
+                <div className="w-12 text-right text-sm font-semibold">
+                  {fmtPct(percentPaid)}
+                </div>
               </div>
             </CardBody>
           </Card>
@@ -446,7 +606,12 @@ export default function Page() {
             <CardBody>
               <div className="text-2xl font-bold">{claimsFiltered.length}</div>
               <div className="mt-1 text-sm text-gray-500">
-                {claimsFiltered.filter((c) => c.status === "In Review" || c.status === "Submitted").length} open •{" "}
+                {
+                  claimsFiltered.filter(
+                    (c) => c.status === "In Review" || c.status === "Submitted"
+                  ).length
+                }{" "}
+                open •{" "}
                 {claimsFiltered.filter((c) => c.status === "Approved").length} approved
               </div>
             </CardBody>
@@ -461,7 +626,9 @@ export default function Page() {
             return (
               <Card key={p.id} className={`ring-1 ${p.color}`}>
                 <CardBody className="pt-5">
-                  <div className="mb-2 text-lg font-semibold text-gray-900">{p.title}</div>
+                  <div className="mb-2 text-lg font-semibold text-gray-900">
+                    {p.title}
+                  </div>
                   <div className="flex items-baseline gap-3">
                     <div className="text-4xl font-bold">{fmtPct(pct)}</div>
                   </div>
@@ -469,16 +636,26 @@ export default function Page() {
                     <Progress value={pct} />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-600">
-                    <div>Paid: <span className="font-semibold text-gray-900">{fmtCurr(p.paid)}</span></div>
-                    <div>Value: <span className="font-semibold text-gray-900">{fmtCurr(p.value)}</span></div>
+                    <div>
+                      Paid:{" "}
+                      <span className="font-semibold text-gray-900">
+                        {fmtCurr(p.paid)}
+                      </span>
+                    </div>
+                    <div>
+                      Value:{" "}
+                      <span className="font-semibold text-gray-900">
+                        {fmtCurr(p.value)}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Details button opens IPCs */}
+                  {/* Details button opens modal (IPCs + Advance Payment) */}
                   <div className="mt-4">
                     <button
                       onClick={() => openIPCs(p)}
                       className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-                      aria-label={`Open IPCs for ${p.title}`}
+                      aria-label={`Open details for ${p.title}`}
                     >
                       Details
                     </button>
@@ -489,14 +666,33 @@ export default function Page() {
           })}
         </div>
 
-        {/* Provisional Sum Utilization (simple bars to match look) */}
+        {/* Provisional Sum Utilization */}
         <h2 className="mt-12 text-2xl font-bold">Provisional Sum Utilization</h2>
         <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {visiblePkgs.map((p) => {
-            // demo numbers — can be fed from your real data later
-            const used = { A:22, B:31, C:44, D:10, F:51, G:6, I2:28, PMEC:12 }[p.id] ?? 0;
-            const approved = { A:35, B:12, C:30, D:18, F:21, G:9, I2:7, PMEC:10 }[p.id] ?? 0;
-            const pending = { A:12, B:25, C:10, D:22, F:9, G:19, I2:12, PMEC:5 }[p.id] ?? 0;
+            const used = { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 }[
+              p.id
+            ] ?? 0;
+            const approved = {
+              A: 35,
+              B: 12,
+              C: 30,
+              D: 18,
+              F: 21,
+              G: 9,
+              I2: 7,
+              PMEC: 10,
+            }[p.id] ?? 0;
+            const pending = {
+              A: 12,
+              B: 25,
+              C: 10,
+              D: 22,
+              F: 9,
+              G: 19,
+              I2: 12,
+              PMEC: 5,
+            }[p.id] ?? 0;
             return (
               <Card key={`psu-${p.id}`} className={`ring-1 ${p.color}`}>
                 <CardBody className="pt-5">
@@ -505,15 +701,18 @@ export default function Page() {
                   </div>
                   <div className="grid gap-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Used</span><span className="font-semibold">{used}%</span>
+                      <span className="text-gray-700">Used</span>
+                      <span className="font-semibold">{used}%</span>
                     </div>
                     <Progress value={used} />
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Approved</span><span className="font-semibold">{approved}%</span>
+                      <span className="text-gray-700">Approved</span>
+                      <span className="font-semibold">{approved}%</span>
                     </div>
                     <Progress value={approved} />
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Pending</span><span className="font-semibold">{pending}%</span>
+                      <span className="text-gray-700">Pending</span>
+                      <span className="font-semibold">{pending}%</span>
                     </div>
                     <Progress value={pending} />
                   </div>
@@ -556,7 +755,9 @@ export default function Page() {
                 <tbody>
                   {cosFiltered.map((c) => {
                     const variance =
-                      c.actual == null || c.estimated == null ? null : c.actual - c.estimated;
+                      c.actual == null || c.estimated == null
+                        ? null
+                        : c.actual - c.estimated;
                     return (
                       <tr key={c.id} className="border-t">
                         <td className="py-3 font-semibold">{c.id}</td>
@@ -566,11 +767,25 @@ export default function Page() {
                           </span>
                         </td>
                         <td className="py-3">{c.title}</td>
-                        <td className="py-3"><StatusPill status={c.status} /></td>
+                        <td className="py-3">
+                          <StatusPill status={c.status} />
+                        </td>
                         <td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
                         <td className="py-3">{fmtCurr(c.actual ?? null)}</td>
-                        <td className={`py-3 ${variance != null ? (variance > 0 ? "text-rose-600" : "text-emerald-600") : "text-gray-900"}`}>
-                          {variance == null ? "—" : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString("en-US")}`}
+                        <td
+                          className={`py-3 ${
+                            variance != null
+                              ? variance > 0
+                                ? "text-rose-600"
+                                : "text-emerald-600"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {variance == null
+                            ? "—"
+                            : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
+                                variance
+                              ).toLocaleString("en-US")}`}
                         </td>
                         <td className="py-3">{fmtDate(c.date)}</td>
                       </tr>
@@ -616,11 +831,12 @@ export default function Page() {
                 <tbody>
                   {claimsFiltered.map((c) => {
                     const variance =
-                      c.certified == null ? null : (c.certified - c.claimed);
+                      c.certified == null ? null : c.certified - c.claimed;
                     const daysOpen = Math.max(
                       0,
                       Math.round(
-                        (Date.now() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)
+                        (Date.now() - new Date(c.date).getTime()) /
+                          (1000 * 60 * 60 * 24)
                       )
                     );
                     return (
@@ -632,14 +848,34 @@ export default function Page() {
                           </span>
                         </td>
                         <td className="py-3">{c.title}</td>
-                        <td className="py-3"><StatusPill status={c.status as Status} /></td>
+                        <td className="py-3">
+                          <StatusPill status={c.status as Status} />
+                        </td>
                         <td className="py-3">{fmtCurr(c.claimed)}</td>
-                        <td className="py-3">{fmtCurr(c.certified ?? null)}</td>
-                        <td className={`py-3 ${variance != null ? (variance > 0 ? "text-rose-600" : "text-emerald-600") : "text-gray-900"}`}>
-                          {variance == null ? "—" : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString("en-US")}`}
+                        <td className="py-3">
+                          {fmtCurr(c.certified ?? null)}
+                        </td>
+                        <td
+                          className={`py-3 ${
+                            variance != null
+                              ? variance > 0
+                                ? "text-rose-600"
+                                : "text-emerald-600"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {variance == null
+                            ? "—"
+                            : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
+                                variance
+                              ).toLocaleString("en-US")}`}
                         </td>
                         <td className="py-3">
-                          <span className={`${daysOpen > 40 ? "text-amber-600" : "text-gray-900"} font-semibold`}>
+                          <span
+                            className={`font-semibold ${
+                              daysOpen > 40 ? "text-amber-600" : "text-gray-900"
+                            }`}
+                          >
                             {daysOpen}
                           </span>
                         </td>
@@ -654,9 +890,12 @@ export default function Page() {
         </Card>
       </main>
 
-      {/* IPCs Modal */}
-      <IPCsModal open={openModal} onClose={() => setOpenModal(false)} pkg={modalPkg} />
+      {/* Modal */}
+      <IPCsModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        pkg={modalPkg}
+      />
     </div>
   );
 }
-
