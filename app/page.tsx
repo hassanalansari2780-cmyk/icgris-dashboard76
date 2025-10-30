@@ -21,7 +21,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 // ✅ canonical shadcn table exports (avoids Thead/Tbody reference errors)
 import {
@@ -734,63 +733,75 @@ function PaymentsDetailsModal({
             )}
           </DialogDescription>
         </DialogHeader>
-
-        <Tabs defaultValue="ipcs" className="mt-2">
-          <TabsList>
-            <TabsTrigger value="ipcs">IPCs</TabsTrigger>
-            <TabsTrigger value="advance">Advance Payment</TabsTrigger>
-          </TabsList>
-
-        	<TabsContent value="ipcs" className="mt-4">
-            {ipcs.length > 0 ? (
-              <div className="rounded-xl border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>IPC No.</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Certified</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ipcs.map((i) => (
-                      <TableRow key={i.ipcNo}>
-                        <TableCell className="font-medium">{i.ipcNo}</TableCell>
-                        <TableCell>{new Date(i.date).toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "2-digit" })}</TableCell>
-                        <TableCell className="text-right">{currency(i.certified)}</TableCell>
-                        <TableCell>{i.status}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">No IPCs recorded for this package.</div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="advance" className="mt-4">
-            {ap ? (
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Metric label="Advance Amount" value={currency(ap.amount)} />
-                  <Metric label="Recovered" value={currency(ap.recovered)} />
-                  <Metric label="Outstanding" value={currency(ap.amount - ap.recovered)} />
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-medium">Recovery Progress</div>
-                    <div className="text-sm text-muted-foreground">{apPct}%</div>
+        {/* Simple local tab switcher (removes dependency on '@/components/ui/tabs') */}
+        {(() => {
+          const [tab, setTab] = React.useState<'ipcs' | 'advance'>(() => 'ipcs');
+          // We must return a React element from an IIFE, so wrap stateful content in a component
+          function Body() {
+            const [activeTab, setActiveTab] = React.useState<'ipcs' | 'advance'>(tab);
+            React.useEffect(() => setActiveTab(tab), [tab]);
+            return (
+              <div className="mt-2">
+                <div className="mb-3 inline-flex items-center gap-2">
+                  <div className="inline-flex rounded-lg border p-1">
+                    <Button size="sm" variant={activeTab === 'ipcs' ? 'default' : 'ghost'} onClick={() => setTab('ipcs')}>IPCs</Button>
+                    <Button size="sm" variant={activeTab === 'advance' ? 'default' : 'ghost'} onClick={() => setTab('advance')}>Advance Payment</Button>
                   </div>
-                  <Progress value={apPct} />
                 </div>
+
+                {activeTab === 'ipcs' ? (
+                  ipcs.length > 0 ? (
+                    <div className="rounded-xl border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>IPC No.</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Certified</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ipcs.map((i) => (
+                            <TableRow key={i.ipcNo}>
+                              <TableCell className="font-medium">{i.ipcNo}</TableCell>
+                              <TableCell>{new Date(i.date).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' })}</TableCell>
+                              <TableCell className="text-right">{currency(i.certified)}</TableCell>
+                              <TableCell>{i.status}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No IPCs recorded for this package.</div>
+                  )
+                ) : (
+                  ap ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <Metric label="Advance Amount" value={currency(ap.amount)} />
+                        <Metric label="Recovered" value={currency(ap.recovered)} />
+                        <Metric label="Outstanding" value={currency(ap.amount - ap.recovered)} />
+                      </div>
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="text-sm font-medium">Recovery Progress</div>
+                          <div className="text-sm text-muted-foreground">{apPct}%</div>
+                        </div>
+                        <Progress value={apPct} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No advance payment data for this package.</div>
+                  )
+                )}
               </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">No advance payment data for this package.</div>
-            )}
-          </TabsContent>
-        </Tabs>
+            );
+          }
+          return <Body />;
+        })()}
+
 
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>Close</Button>
@@ -844,4 +855,3 @@ function Pie({ counts, labels }: { counts: Record<string, number>; labels: strin
     </svg>
   );
 }
-
