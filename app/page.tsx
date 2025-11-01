@@ -492,6 +492,11 @@ export default function Page() {
 const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
 const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("All");
 
+// --- CLAIMS filter state ---
+const CLAIM_STATUSES = ["All", "Submitted", "In Review", "Approved", "Rejected"] as const;
+const [claimFilter, setClaimFilter] =
+  React.useState<(typeof CLAIM_STATUSES)[number]>("All");
+
 // ONE unified filtered array for COs: package + search + status pill
 const cosFiltered = React.useMemo(() => {
   return cos.filter((c) =>
@@ -500,6 +505,16 @@ const cosFiltered = React.useMemo(() => {
     (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
   );
 }, [cos, selectedPkgs, search, coFilter]);
+
+// ONE unified filtered array for Claims: package + search + status pill
+const claimsFiltered = React.useMemo(() => {
+  return claims.filter((c) =>
+    selectedPkgs.includes(c.pkg) &&
+    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+    (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter)
+  );
+}, [claims, selectedPkgs, search, claimFilter]);
+
 
   // derived totals
   const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
@@ -769,7 +784,7 @@ const cosFiltered = React.useMemo(() => {
           })}
         </div>
 
-        {/* Change Orders (COs) */}
+       {/* Change Orders (COs) */}
 <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 
 <Card className="mt-4">
@@ -797,7 +812,6 @@ const cosFiltered = React.useMemo(() => {
       </div>
     }
   />
-
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -813,34 +827,26 @@ const cosFiltered = React.useMemo(() => {
             <th className="py-3">Date</th>
           </tr>
         </thead>
-
         <tbody>
           {cosFiltered.map((c) => {
             const variance =
               c.actual == null || c.estimated == null
                 ? null
                 : c.actual - c.estimated;
-
             return (
               <tr key={c.id} className="border-t">
                 <td className="py-3 font-semibold">{c.id}</td>
-
                 <td className="py-3">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
                     {c.pkg}
                   </span>
                 </td>
-
                 <td className="py-3">{c.title}</td>
-
                 <td className="py-3">
                   <StatusPill status={c.status} />
                 </td>
-
                 <td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
-
                 <td className="py-3">{fmtCurr(c.actual ?? null)}</td>
-
                 <td
                   className={`py-3 ${
                     variance != null
@@ -856,7 +862,6 @@ const cosFiltered = React.useMemo(() => {
                         variance
                       ).toLocaleString("en-US")}`}
                 </td>
-
                 <td className="py-3">{fmtDate(c.date)}</td>
               </tr>
             );
@@ -877,7 +882,6 @@ const cosFiltered = React.useMemo(() => {
     </div>
   </CardBody>
 </Card>
-
 
         {/* Claims */}
         <h2 className="mt-12 text-2xl font-bold">Claims</h2>
