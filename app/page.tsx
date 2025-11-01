@@ -278,6 +278,72 @@ const cos: CO[] = [
   { id: "CO-I2-002", pkg: "I2", title: "Interface Test Extension", status: "Proposed", estimated: 450_000, actual: null, date: "2025-09-29" },
   { id: "CO-PMEC-001", pkg: "PMEC", title: "Additional Studies", status: "Approved", estimated: 300_000, actual: 290_000, date: "2025-02-14" },
 ];
+// --- Change Orders (COs) ---
+const coPills: Pill[] = [
+  { key: "All", label: "All" },
+  { key: "Proposed", label: "Proposed" },
+  { key: "In Review", label: "In Review" },
+  { key: "Approved", label: "Approved" },
+  { key: "Rejected", label: "Rejected" },
+];
+const [coFilter, setCoFilter] = React.useState<string>("All");
+
+// IMPORTANT: adjust these keys to match your data’s exact status text
+const filteredCOs = React.useMemo(() => {
+  if (coFilter === "All") return changeOrders;
+  return changeOrders.filter((co) => (co.status || "").trim() === coFilter);
+}, [changeOrders, coFilter]);
+
+{/* Heading + Filters */}
+<div className="flex items-center justify-between">
+  <h2 className="text-3xl font-extrabold tracking-tight">Change Orders (COs)</h2>
+  <PillBar pills={coPills} active={coFilter} onChange={setCoFilter} />
+</div>
+
+{/* Table */}
+<div className="mt-6 overflow-hidden rounded-3xl border border-gray-200">
+  <table className="min-w-full divide-y divide-gray-200">
+    <thead className="bg-gray-50">
+      <tr>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">CO ID</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Package</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Title</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Estimated</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Actual</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Variance</th>
+        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Date</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-gray-100 bg-white">
+      {filteredCOs.map((co) => (
+        <tr key={co.id}>
+          <td className="px-6 py-4 text-sm font-medium text-gray-900">{co.id}</td>
+          <td className="px-6 py-4 text-sm text-gray-700">{co.package}</td>
+          <td className="px-6 py-4 text-sm text-gray-700">{co.title}</td>
+          <td className="px-6 py-4">
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
+              {co.status}
+            </span>
+          </td>
+          <td className="px-6 py-4 text-sm text-gray-700">{co.estimated}</td>
+          <td className="px-6 py-4 text-sm text-gray-700">{co.actual ?? "—"}</td>
+          <td className={`px-6 py-4 text-sm ${String(co.variance || "").includes("-AED") ? "text-green-600" : String(co.variance || "").includes("AED") ? "text-red-600" : "text-gray-700"}`}>
+            {co.variance ?? "—"}
+          </td>
+          <td className="px-6 py-4 text-sm text-gray-700">{co.date}</td>
+        </tr>
+      ))}
+      {filteredCOs.length === 0 && (
+        <tr>
+          <td colSpan={8} className="px-6 py-14 text-center text-sm text-gray-500">
+            No change orders found for “{coFilter}”.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
 
 type Claim = {
   id: string;
