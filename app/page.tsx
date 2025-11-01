@@ -907,8 +907,7 @@ const claimsFiltered = React.useMemo(() => {
         </button>
       </div>
     }
-  ></CardHeader>
-
+  />
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -932,8 +931,7 @@ const claimsFiltered = React.useMemo(() => {
             const daysOpen = Math.max(
               0,
               Math.round(
-                (Date.now() - new Date(c.date).getTime()) /
-                  (1000 * 60 * 60 * 24)
+                (Date.now() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)
               )
             );
             return (
@@ -961,9 +959,7 @@ const claimsFiltered = React.useMemo(() => {
                 >
                   {variance == null
                     ? "—"
-                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
-                        variance
-                      ).toLocaleString("en-US")}`}
+                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString("en-US")}`}
                 </td>
                 <td className="py-3">
                   <span
@@ -978,18 +974,28 @@ const claimsFiltered = React.useMemo(() => {
               </tr>
             );
           })}
+          {claimsFiltered.length === 0 && (
+            <tr>
+              <td colSpan={9} className="py-6 text-center text-gray-500 font-medium">
+                No claims found for “{claimFilter}”.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
   </CardBody>
 </Card>
 
-      {/* Modal */}
-      <IPCsModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        pkg={modalPkg}
-      />
-    </div>
-  );
-}
+</main>
+
+{/* Modal must be outside <main> but inside the page wrapper */}
+<IPCsModal
+  open={openModal}
+  onClose={() => setOpenModal(false)}
+  pkg={modalPkg}
+/>
+</div>  {/* <-- closes the page wrapper div from the top of render */}
+
+) ;      {/* <-- closes the return( ... ) */}
+}         {/* <-- closes: export default function Page() */}
