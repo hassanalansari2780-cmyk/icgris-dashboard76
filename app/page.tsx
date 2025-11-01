@@ -258,16 +258,6 @@ const payments: PaymentPkg[] = [
   },
 ];
 
-type CO = {
-  id: string;
-  pkg: PaymentPkg["id"];
-  title: string;
-  status: Status;
-  estimated?: number | null;
-  actual?: number | null;
-  date: string; // ISO
-};
-
 // --- Change Orders (COs) ---
 const coPills: Pill[] = [
   { key: "All", label: "All" },
