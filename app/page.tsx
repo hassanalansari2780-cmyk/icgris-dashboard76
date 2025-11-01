@@ -757,7 +757,6 @@ export default function Page() {
         </div>
 
         {/* Change Orders */}
-        <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 // --- Change Orders (COs) ---
 const coPills: Pill[] = [
   { key: "All", label: "All" },
