@@ -773,42 +773,35 @@ const claimsFiltered = React.useMemo(() => {
           })}
         </div>
 
-       {/* Change Orders (COs) */}
+     {/* Change Orders (COs) */}
 <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 
 <Card className="mt-4">
-<CardHeader
-  right={
-    <div className="flex gap-2">
-      {CLAIM_STATUSES.map((s) => (
-        <button
-          key={s}
-          onClick={() => setClaimFilter(s)}
-          className={[
-            "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-            claimFilter === s
-              ? "bg-gray-900 text-white"
-              : "bg-gray-100 text-gray-900 hover:bg-gray-200",
-          ].join(" ")}
-        >
-          {s}
-        </button>
-      ))}
-
-      <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
-        Export CSV
-      </button>
-    </div>
-  }
-></CardHeader>
-
+  <CardHeader
+    right={
+      <div className="flex gap-2">
+        {CO_STATUSES.map((s) => (
+          <button
+            key={s}
+            onClick={() => setCoFilter(s)}
+            className={[
+              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              coFilter === s
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+            ].join(" ")}
+          >
+            {s}
+          </button>
+        ))}
 
         <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
           Export CSV
         </button>
       </div>
     }
-  />
+  ></CardHeader>
+
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -830,20 +823,27 @@ const claimsFiltered = React.useMemo(() => {
               c.actual == null || c.estimated == null
                 ? null
                 : c.actual - c.estimated;
+
             return (
               <tr key={c.id} className="border-t">
                 <td className="py-3 font-semibold">{c.id}</td>
+
                 <td className="py-3">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
                     {c.pkg}
                   </span>
                 </td>
+
                 <td className="py-3">{c.title}</td>
+
                 <td className="py-3">
-                  <StatusPill status={c.status} />
+                  <StatusPill status={c.status as Status} />
                 </td>
+
                 <td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
+
                 <td className="py-3">{fmtCurr(c.actual ?? null)}</td>
+
                 <td
                   className={`py-3 ${
                     variance != null
@@ -859,6 +859,7 @@ const claimsFiltered = React.useMemo(() => {
                         variance
                       ).toLocaleString("en-US")}`}
                 </td>
+
                 <td className="py-3">{fmtDate(c.date)}</td>
               </tr>
             );
@@ -880,109 +881,108 @@ const claimsFiltered = React.useMemo(() => {
   </CardBody>
 </Card>
 
-        {/* Claims */}
-        <h2 className="mt-12 text-2xl font-bold">Claims</h2>
-        <Card className="mt-4">
-          <CardHeader
-            right={
-{CLAIM_STATUSES.map((s) => (
-  <button
-    key={s}
-    onClick={() => setClaimFilter(s)}
-    className={[
-      "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-      claimFilter === s
-        ? "bg-gray-900 text-white"
-        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-    ].join(" ")}
-  >
-    {s}
-  </button>
-))}
+{/* Claims */}
+<h2 className="mt-12 text-2xl font-bold">Claims</h2>
+<Card className="mt-4">
+  <CardHeader
+    right={
+      <div className="flex gap-2">
+        {CLAIM_STATUSES.map((s) => (
+          <button
+            key={s}
+            onClick={() => setClaimFilter(s)}
+            className={[
+              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              claimFilter === s
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+            ].join(" ")}
+          >
+            {s}
+          </button>
+        ))}
 
-                <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
-                  Export CSV
-                </button>
-              </div>
-            }
-          />
-          <CardBody className="pt-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-600">
-                    <th className="py-3">Claim ID</th>
-                    <th className="py-3">Package</th>
-                    <th className="py-3">Title</th>
-                    <th className="py-3">Status</th>
-                    <th className="py-3">Claimed</th>
-                    <th className="py-3">Certified</th>
-                    <th className="py-3">Variance</th>
-                    <th className="py-3">Days Open</th>
-                    <th className="py-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {claimsFiltered.map((c) => {
-                    const variance =
-                      c.certified == null ? null : c.certified - c.claimed;
-                    const daysOpen = Math.max(
-                      0,
-                      Math.round(
-                        (Date.now() - new Date(c.date).getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )
-                    );
-                    return (
-                      <tr key={c.id} className="border-t">
-                        <td className="py-3 font-semibold">{c.id}</td>
-                        <td className="py-3">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
-                            {c.pkg}
-                          </span>
-                        </td>
-                        <td className="py-3">{c.title}</td>
-                        <td className="py-3">
-                          <StatusPill status={c.status as Status} />
-                        </td>
-                        <td className="py-3">{fmtCurr(c.claimed)}</td>
-                        <td className="py-3">
-                          {fmtCurr(c.certified ?? null)}
-                        </td>
-                        <td
-                          className={`py-3 ${
-                            variance != null
-                              ? variance > 0
-                                ? "text-rose-600"
-                                : "text-emerald-600"
-                              : "text-gray-900"
-                          }`}
-                        >
-                          {variance == null
-                            ? "—"
-                            : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
-                                variance
-                              ).toLocaleString("en-US")}`}
-                        </td>
-                        <td className="py-3">
-                          <span
-                            className={`font-semibold ${
-                              daysOpen > 40 ? "text-amber-600" : "text-gray-900"
-                            }`}
-                          >
-                            {daysOpen}
-                          </span>
-                        </td>
-                        <td className="py-3">{fmtDate(c.date)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        </Card>
-      </main>
+        <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
+          Export CSV
+        </button>
+      </div>
+    }
+  ></CardHeader>
+
+  <CardBody className="pt-0">
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="text-left text-gray-600">
+            <th className="py-3">Claim ID</th>
+            <th className="py-3">Package</th>
+            <th className="py-3">Title</th>
+            <th className="py-3">Status</th>
+            <th className="py-3">Claimed</th>
+            <th className="py-3">Certified</th>
+            <th className="py-3">Variance</th>
+            <th className="py-3">Days Open</th>
+            <th className="py-3">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {claimsFiltered.map((c) => {
+            const variance =
+              c.certified == null ? null : c.certified - c.claimed;
+            const daysOpen = Math.max(
+              0,
+              Math.round(
+                (Date.now() - new Date(c.date).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            );
+            return (
+              <tr key={c.id} className="border-t">
+                <td className="py-3 font-semibold">{c.id}</td>
+                <td className="py-3">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
+                    {c.pkg}
+                  </span>
+                </td>
+                <td className="py-3">{c.title}</td>
+                <td className="py-3">
+                  <StatusPill status={c.status as Status} />
+                </td>
+                <td className="py-3">{fmtCurr(c.claimed)}</td>
+                <td className="py-3">{fmtCurr(c.certified ?? null)}</td>
+                <td
+                  className={`py-3 ${
+                    variance != null
+                      ? variance > 0
+                        ? "text-rose-600"
+                        : "text-emerald-600"
+                      : "text-gray-900"
+                  }`}
+                >
+                  {variance == null
+                    ? "—"
+                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
+                        variance
+                      ).toLocaleString("en-US")}`}
+                </td>
+                <td className="py-3">
+                  <span
+                    className={`font-semibold ${
+                      daysOpen > 40 ? "text-amber-600" : "text-gray-900"
+                    }`}
+                  >
+                    {daysOpen}
+                  </span>
+                </td>
+                <td className="py-3">{fmtDate(c.date)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </CardBody>
+</Card>
 
       {/* Modal */}
       <IPCsModal
