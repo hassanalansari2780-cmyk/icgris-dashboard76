@@ -487,6 +487,15 @@ export default function Page() {
     setModalPkg(pkg);
     setOpenModal(true);
   };
+  
+// --- CO filter state ---
+const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
+const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("All");
+
+const cosFiltered = React.useMemo(() => {
+  if (coFilter === "All") return cos;          // cos = your dataset, same as before
+  return cos.filter((c) => (c.status || "").trim() === coFilter);
+}, [coFilter, cos]);
 
   // derived totals
   const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
@@ -756,73 +765,115 @@ export default function Page() {
           })}
         </div>
 
-        {/* Change Orders */}
-// --- Change Orders (COs) ---
-const coPills: Pill[] = [
-  { key: "All", label: "All" },
-  { key: "Proposed", label: "Proposed" },
-  { key: "In Review", label: "In Review" },
-  { key: "Approved", label: "Approved" },
-  { key: "Rejected", label: "Rejected" },
-];
-const [coFilter, setCoFilter] = React.useState<string>("All");
+        {/* Change Orders (COs) */}
+<h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 
-// IMPORTANT: adjust these keys to match your data’s exact status text
-const filteredCOs = React.useMemo(() => {
-  if (coFilter === "All") return changeOrders;
-  return changeOrders.filter((co) => (co.status || "").trim() === coFilter);
-}, [changeOrders, coFilter]);
+<Card className="mt-4">
+  <CardHeader
+    right={
+      <div className="flex gap-2">
+        {CO_STATUSES.map((s) => (
+          <button
+            key={s}
+            onClick={() => setCoFilter(s)}
+            className={[
+              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              coFilter === s
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+            ].join(" ")}
+          >
+            {s}
+          </button>
+        ))}
 
-{/* Heading + Filters */}
-<div className="flex items-center justify-between">
-  <h2 className="text-3xl font-extrabold tracking-tight">Change Orders (COs)</h2>
-  <PillBar pills={coPills} active={coFilter} onChange={setCoFilter} />
-</div>
+        <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
+          Export CSV
+        </button>
+      </div>
+    }
+  />
 
-{/* Table */}
-<div className="mt-6 overflow-hidden rounded-3xl border border-gray-200">
-  <table className="min-w-full divide-y divide-gray-200">
-    <thead className="bg-gray-50">
-      <tr>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">CO ID</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Package</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Title</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Estimated</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Actual</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Variance</th>
-        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Date</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-100 bg-white">
-      {filteredCOs.map((co) => (
-        <tr key={co.id}>
-          <td className="px-6 py-4 text-sm font-medium text-gray-900">{co.id}</td>
-          <td className="px-6 py-4 text-sm text-gray-700">{co.package}</td>
-          <td className="px-6 py-4 text-sm text-gray-700">{co.title}</td>
-          <td className="px-6 py-4">
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
-              {co.status}
-            </span>
-          </td>
-          <td className="px-6 py-4 text-sm text-gray-700">{co.estimated}</td>
-          <td className="px-6 py-4 text-sm text-gray-700">{co.actual ?? "—"}</td>
-          <td className={`px-6 py-4 text-sm ${String(co.variance || "").includes("-AED") ? "text-green-600" : String(co.variance || "").includes("AED") ? "text-red-600" : "text-gray-700"}`}>
-            {co.variance ?? "—"}
-          </td>
-          <td className="px-6 py-4 text-sm text-gray-700">{co.date}</td>
-        </tr>
-      ))}
-      {filteredCOs.length === 0 && (
-        <tr>
-          <td colSpan={8} className="px-6 py-14 text-center text-sm text-gray-500">
-            No change orders found for “{coFilter}”.
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
+  <CardBody className="pt-0">
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="text-left text-gray-600">
+            <th className="py-3">CO ID</th>
+            <th className="py-3">Package</th>
+            <th className="py-3">Title</th>
+            <th className="py-3">Status</th>
+            <th className="py-3">Estimated</th>
+            <th className="py-3">Actual</th>
+            <th className="py-3">Variance</th>
+            <th className="py-3">Date</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {cosFiltered.map((c) => {
+            const variance =
+              c.actual == null || c.estimated == null
+                ? null
+                : c.actual - c.estimated;
+
+            return (
+              <tr key={c.id} className="border-t">
+                <td className="py-3 font-semibold">{c.id}</td>
+
+                <td className="py-3">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
+                    {c.pkg}
+                  </span>
+                </td>
+
+                <td className="py-3">{c.title}</td>
+
+                <td className="py-3">
+                  <StatusPill status={c.status} />
+                </td>
+
+                <td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
+
+                <td className="py-3">{fmtCurr(c.actual ?? null)}</td>
+
+                <td
+                  className={`py-3 ${
+                    variance != null
+                      ? variance > 0
+                        ? "text-rose-600"
+                        : "text-emerald-600"
+                      : "text-gray-900"
+                  }`}
+                >
+                  {variance == null
+                    ? "—"
+                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
+                        variance
+                      ).toLocaleString("en-US")}`}
+                </td>
+
+                <td className="py-3">{fmtDate(c.date)}</td>
+              </tr>
+            );
+          })}
+
+          {cosFiltered.length === 0 && (
+            <tr>
+              <td
+                colSpan={8}
+                className="py-6 text-center text-gray-500 font-medium"
+              >
+                No change orders found for “{coFilter}”.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </CardBody>
+</Card>
+
 
         {/* Claims */}
         <h2 className="mt-12 text-2xl font-bold">Claims</h2>
