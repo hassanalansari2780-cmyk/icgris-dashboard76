@@ -2,6 +2,40 @@
 "use client";
 import React from "react";
 
+type Pill = { key: string; label: string };
+
+function PillBar({
+  pills,
+  active,
+  onChange,
+}: {
+  pills: Pill[];
+  active: string;
+  onChange: (key: string) => void;
+}) {
+  return (
+    <div className="flex gap-4 flex-wrap">
+      {pills.map((p) => {
+        const isActive = p.key === active;
+        return (
+          <button
+            key={p.key}
+            onClick={() => onChange(p.key)}
+            className={[
+              "px-6 py-3 rounded-full text-base font-semibold transition-colors",
+              isActive
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+            ].join(" ")}
+          >
+            {p.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** --------------------------
  * Utilities
  * -------------------------- */
