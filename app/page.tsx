@@ -492,10 +492,14 @@ export default function Page() {
 const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
 const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("All");
 
+// ONE unified filtered array for COs: package + search + status pill
 const cosFiltered = React.useMemo(() => {
-  if (coFilter === "All") return cos;          // cos = your dataset, same as before
-  return cos.filter((c) => (c.status || "").trim() === coFilter);
-}, [coFilter, cos]);
+  return cos.filter((c) =>
+    selectedPkgs.includes(c.pkg) &&
+    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+    (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
+  );
+}, [cos, selectedPkgs, search, coFilter]);
 
   // derived totals
   const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
