@@ -777,23 +777,30 @@ const claimsFiltered = React.useMemo(() => {
 <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 
 <Card className="mt-4">
-  <CardHeader
-    right={
-      <div className="flex gap-2">
-        {CO_STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setCoFilter(s)}
-            className={[
-              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-              coFilter === s
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-            ].join(" ")}
-          >
-            {s}
-          </button>
-        ))}
+<CardHeader
+  right={
+    <div className="flex gap-2">
+      {CLAIM_STATUSES.map((s) => (
+        <button
+          key={s}
+          onClick={() => setClaimFilter(s)}
+          className={[
+            "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+            claimFilter === s
+              ? "bg-gray-900 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+          ].join(" ")}
+        >
+          {s}
+        </button>
+      ))}
+
+      <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
+        Export CSV
+      </button>
+    </div>
+  }
+/>
 
         <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
           Export CSV
