@@ -986,16 +986,15 @@ const claimsFiltered = React.useMemo(() => {
     </div>
   </CardBody>
 </Card>
-
 </main>
 
-{/* Modal must be outside <main> but inside the page wrapper */}
+{/* Modal stays outside <main> but inside the page wrapper */}
 <IPCsModal
   open={openModal}
   onClose={() => setOpenModal(false)}
   pkg={modalPkg}
 />
-</div>  {/* <-- closes the page wrapper div from the top of render */}
+</div>  {/* closes the top-level page wrapper div */}
 
-) ;      {/* <-- closes the return( ... ) */}
-}         {/* <-- closes: export default function Page() */}
+);       // closes: return ( ... )
+}        // closes: export default function Page()
