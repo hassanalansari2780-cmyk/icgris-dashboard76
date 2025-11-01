@@ -773,7 +773,7 @@ const claimsFiltered = React.useMemo(() => {
           })}
         </div>
 
-     {/* Change Orders (COs) */}
+   {/* Change Orders (COs) */}
 <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
 
 <Card className="mt-4">
@@ -800,7 +800,7 @@ const claimsFiltered = React.useMemo(() => {
         </button>
       </div>
     }
-  ></CardHeader>
+  />
 
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
@@ -820,9 +820,7 @@ const claimsFiltered = React.useMemo(() => {
         <tbody>
           {cosFiltered.map((c) => {
             const variance =
-              c.actual == null || c.estimated == null
-                ? null
-                : c.actual - c.estimated;
+              c.actual == null || c.estimated == null ? null : c.actual - c.estimated;
 
             return (
               <tr key={c.id} className="border-t">
@@ -841,7 +839,6 @@ const claimsFiltered = React.useMemo(() => {
                 </td>
 
                 <td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
-
                 <td className="py-3">{fmtCurr(c.actual ?? null)}</td>
 
                 <td
@@ -855,9 +852,9 @@ const claimsFiltered = React.useMemo(() => {
                 >
                   {variance == null
                     ? "—"
-                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(
-                        variance
-                      ).toLocaleString("en-US")}`}
+                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString(
+                        "en-US"
+                      )}`}
                 </td>
 
                 <td className="py-3">{fmtDate(c.date)}</td>
@@ -867,10 +864,7 @@ const claimsFiltered = React.useMemo(() => {
 
           {cosFiltered.length === 0 && (
             <tr>
-              <td
-                colSpan={8}
-                className="py-6 text-center text-gray-500 font-medium"
-              >
+              <td colSpan={8} className="py-6 text-center text-gray-500 font-medium">
                 No change orders found for “{coFilter}”.
               </td>
             </tr>
@@ -883,6 +877,7 @@ const claimsFiltered = React.useMemo(() => {
 
 {/* Claims */}
 <h2 className="mt-12 text-2xl font-bold">Claims</h2>
+
 <Card className="mt-4">
   <CardHeader
     right={
@@ -908,6 +903,7 @@ const claimsFiltered = React.useMemo(() => {
       </div>
     }
   />
+
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -926,28 +922,31 @@ const claimsFiltered = React.useMemo(() => {
         </thead>
         <tbody>
           {claimsFiltered.map((c) => {
-            const variance =
-              c.certified == null ? null : c.certified - c.claimed;
+            const variance = c.certified == null ? null : c.certified - c.claimed;
             const daysOpen = Math.max(
               0,
-              Math.round(
-                (Date.now() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)
-              )
+              Math.round((Date.now() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24))
             );
+
             return (
               <tr key={c.id} className="border-t">
                 <td className="py-3 font-semibold">{c.id}</td>
+
                 <td className="py-3">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
                     {c.pkg}
                   </span>
                 </td>
+
                 <td className="py-3">{c.title}</td>
+
                 <td className="py-3">
                   <StatusPill status={c.status as Status} />
                 </td>
+
                 <td className="py-3">{fmtCurr(c.claimed)}</td>
                 <td className="py-3">{fmtCurr(c.certified ?? null)}</td>
+
                 <td
                   className={`py-3 ${
                     variance != null
@@ -959,8 +958,11 @@ const claimsFiltered = React.useMemo(() => {
                 >
                   {variance == null
                     ? "—"
-                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString("en-US")}`}
+                    : `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString(
+                        "en-US"
+                      )}`}
                 </td>
+
                 <td className="py-3">
                   <span
                     className={`font-semibold ${
@@ -970,10 +972,12 @@ const claimsFiltered = React.useMemo(() => {
                     {daysOpen}
                   </span>
                 </td>
+
                 <td className="py-3">{fmtDate(c.date)}</td>
               </tr>
             );
           })}
+
           {claimsFiltered.length === 0 && (
             <tr>
               <td colSpan={9} className="py-6 text-center text-gray-500 font-medium">
@@ -986,6 +990,7 @@ const claimsFiltered = React.useMemo(() => {
     </div>
   </CardBody>
 </Card>
+
 </main>
 
 {/* Modal stays outside <main> but inside the page wrapper */}
@@ -994,7 +999,8 @@ const claimsFiltered = React.useMemo(() => {
   onClose={() => setOpenModal(false)}
   pkg={modalPkg}
 />
-</div>  {/* closes the top-level page wrapper div */}
 
-);       // closes: return ( ... )
-}        // closes: export default function Page()
+</div>
+);
+}
+
