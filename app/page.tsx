@@ -522,17 +522,6 @@ const claimsFiltered = React.useMemo(() => {
   const totalPaid = visiblePkgs.reduce((s, p) => s + p.paid, 0);
   const percentPaid = (totalPaid / totalValue) * 100;
 
-  const cosFiltered = cos.filter(
-    (c) =>
-      selectedPkgs.includes(c.pkg) &&
-      (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true)
-  );
-  const claimsFiltered = claims.filter(
-    (c) =>
-      selectedPkgs.includes(c.pkg) &&
-      (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true)
-  );
-
   const togglePkg = (id: PaymentPkg["id"]) => {
     setSelectedPkgs((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -888,10 +877,21 @@ const claimsFiltered = React.useMemo(() => {
         <Card className="mt-4">
           <CardHeader
             right={
-              <div className="flex gap-2">
-                {["All", "Submitted", "In Review", "Approved", "Rejected"].map((s) => (
-                  <Pill key={s}>{s}</Pill>
-                ))}
+{CLAIM_STATUSES.map((s) => (
+  <button
+    key={s}
+    onClick={() => setClaimFilter(s)}
+    className={[
+      "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+      claimFilter === s
+        ? "bg-gray-900 text-white"
+        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+    ].join(" ")}
+  >
+    {s}
+  </button>
+))}
+
                 <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
                   Export CSV
                 </button>
