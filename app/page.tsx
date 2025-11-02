@@ -477,8 +477,24 @@ export default function Page() {
     ["A", "B", "C", "D", "F", "G", "I2", "PMEC"]
   );
   const [search, setSearch] = React.useState("");
-  const [time, setTime] = React.useState<"All" | "30d" | "90d" | "YTD">("All");
+const [time, setTime] = React.useState<"All" | "30d" | "60d" | "90d" | "YTD">("All");
+const inTimeRange = React.useCallback((iso: string) => {
+  if (time === "All") return true;
 
+  const d = new Date(iso);
+  const now = new Date();
+
+  if (time === "YTD") {
+    const jan1 = new Date(now.getFullYear(), 0, 1);
+    return d >= jan1 && d <= now;
+  }
+
+  const days = time === "30d" ? 30 : time === "60d" ? 60 : 90;
+  const cutoff = new Date(now);
+  cutoff.setDate(now.getDate() - days);
+  return d >= cutoff && d <= now;
+}, [time]);
+  
   // IPCs Modal
   const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
   const [openModal, setOpenModal] = React.useState(false);
@@ -510,9 +526,12 @@ const claimsFiltered = React.useMemo(() => {
   return claims.filter((c) =>
     selectedPkgs.includes(c.pkg) &&
     (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
-    (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter)
+    (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
+    inTimeRange(c.date) // ✅ NEW
   );
-}, [claims, selectedPkgs, search, claimFilter]);
+}, [claims, selectedPkgs, search, claimFilter, time]);
+
+
 
 
   // derived totals
@@ -593,21 +612,25 @@ const claimsFiltered = React.useMemo(() => {
                   className="w-72 rounded-xl border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-gray-900"
                 />
                 <div className="hidden items-center gap-2 md:flex">
-                  {(["All", "Last 30d", "Last 90d", "YTD"] as const).map((t) => {
-                    const key =
-                      t === "All" ? "All" : t.includes("30") ? "30d" : t.includes("90") ? "90d" : "YTD";
-                    const active = time === (key as any);
-                    return (
-                      <Pill key={t} active={active} onClick={() => setTime(key as any)}>
-                        {t}
-                      </Pill>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+                 const TIME_OPTIONS = [
+  { label: "All", key: "All" as const },
+  { label: "Last 30d", key: "30d" as const },
+  { label: "Last 60d", key: "60d" as const },
+  { label: "Last 90d", key: "90d" as const },
+  { label: "YTD", key: "YTD" as const },
+];
+
+<div className="hidden items-center gap-2 md:flex">
+  {TIME_OPTIONS.map((t) => (
+    <Pill
+      key={t.key}
+      active={time === t.key}
+      onClick={() => setTime(t.key)}
+    >
+      {t.label}
+    </Pill>
+  ))}
+</div>
 
         {/* KPI Cards */}
         <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
