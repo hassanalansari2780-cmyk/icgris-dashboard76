@@ -495,6 +495,14 @@ const inTimeRange = React.useCallback((iso: string) => {
   return d >= cutoff && d <= now;
 }, [time]);
   
+const TIME_OPTIONS = [
+  { label: "All",      key: "All"  as const },
+  { label: "Last 30d", key: "30d"  as const },
+  { label: "Last 60d", key: "60d"  as const },
+  { label: "Last 90d", key: "90d"  as const },
+  { label: "YTD",      key: "YTD"  as const },
+] as const;
+  
   // IPCs Modal
   const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
   const [openModal, setOpenModal] = React.useState(false);
@@ -612,13 +620,6 @@ const claimsFiltered = React.useMemo(() => {
                   className="w-72 rounded-xl border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-gray-900"
                 />
                 <div className="hidden items-center gap-2 md:flex">
-                 const TIME_OPTIONS = [
-  { label: "All", key: "All" as const },
-  { label: "Last 30d", key: "30d" as const },
-  { label: "Last 60d", key: "60d" as const },
-  { label: "Last 90d", key: "90d" as const },
-  { label: "YTD", key: "YTD" as const },
-];
 
 <div className="hidden items-center gap-2 md:flex">
   {TIME_OPTIONS.map((t) => (
