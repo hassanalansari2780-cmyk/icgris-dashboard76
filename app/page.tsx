@@ -708,15 +708,21 @@ const claimsFiltered = React.useMemo(() => {
 
         {/* Provisional Sum Utilization */}
         <h2 className="mt-12 text-2xl font-bold">Provisional Sum Utilization</h2>
-       <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+<div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
   {visiblePkgs.map((p) => {
-    // --- NEW: Provisional Sum values per package (example numbers) ---
-    const totalPS = { A: 10_000_000, B: 7_500_000, C: 12_000_000, D: 4_000_000, F: 8_500_000, G: 2_500_000, I2: 3_200_000, PMEC: 1_800_000 }[p.id] ?? 0;
+    // Total PS amount per package (edit these to your real totals)
+    const totalPS =
+      ({ A: 10_000_000, B: 7_500_000, C: 12_000_000, D: 4_000_000, F: 8_500_000, G: 2_500_000, I2: 3_200_000, PMEC: 1_800_000 } as Record<string, number>)[p.id] ?? 0;
 
-    // Update the percentages (rename Approved → In Review, Pending → Remaining)
-    const used =  { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 }[p.id] ?? 0;
-    const inReview = { A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7, PMEC: 10 }[p.id] ?? 0;
-    const remaining = 100 - used - inReview;
+    // Percentages
+    const usedPct =      ({ A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 } as Record<string, number>)[p.id] ?? 0;
+    const inReviewPct =  ({ A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7,  PMEC: 10 } as Record<string, number>)[p.id] ?? 0;
+    const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
+
+    // Amounts
+    const usedAmt = Math.round((totalPS * usedPct) / 100);
+    const inReviewAmt = Math.round((totalPS * inReviewPct) / 100);
+    const remainingAmt = Math.max(0, totalPS - usedAmt - inReviewAmt);
 
     return (
       <Card key={`psu-${p.id}`} className={`ring-1 ${p.color}`}>
@@ -725,31 +731,36 @@ const claimsFiltered = React.useMemo(() => {
             {p.id === "PMEC" ? "Package PMEC" : `Package ${p.id}`}
           </div>
 
-          {/* NEW: Show total amount */}
+          {/* Total Provisional Sum */}
           <div className="text-sm text-gray-500">Total Provisional Sum</div>
           <div className="text-xl font-bold mb-4">{fmtCurr(totalPS)}</div>
 
-          <div className="grid gap-3 text-sm">
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-700">Used</span>
-              <span className="font-semibold">{used}%</span>
-            </div>
-            <Progress value={used} />
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-700">In Review</span>
-              <span className="font-semibold">{inReview}%</span>
-            </div>
-            <Progress value={inReview} />
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-700">Remaining</span>
-              <span className="font-semibold">{remaining}%</span>
-            </div>
-            <Progress value={remaining} />
-
+          {/* Used */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-700">Used</span>
+            <span className="font-semibold">
+              {fmtCurr(usedAmt)} • {usedPct}%
+            </span>
           </div>
+          <Progress value={usedPct} />
+
+          {/* In Review */}
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-gray-700">In Review</span>
+            <span className="font-semibold">
+              {fmtCurr(inReviewAmt)} • {inReviewPct}%
+            </span>
+          </div>
+          <Progress value={inReviewPct} />
+
+          {/* Remaining */}
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-gray-700">Remaining</span>
+            <span className="font-semibold">
+              {fmtCurr(remainingAmt)} • {remainingPct}%
+            </span>
+          </div>
+          <Progress value={remainingPct} />
         </CardBody>
       </Card>
     );
