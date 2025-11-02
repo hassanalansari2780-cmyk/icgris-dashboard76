@@ -468,6 +468,67 @@ function IPCsModal({
     </div>
   );
 }
+function ValueBreakdownModal({
+  open,
+  onClose,
+  base,
+  coImpact,
+  claimImpact,
+}: {
+  open: boolean;
+  onClose: () => void;
+  base: number;
+  coImpact: number;
+  claimImpact: number;
+}) {
+  if (!open) return null;
+  const actual = base + coImpact + claimImpact;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h3 className="text-lg font-semibold">Actual Contract Value – Breakdown</h3>
+          <button
+            onClick={onClose}
+            className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="px-6 py-4">
+          <table className="w-full text-left">
+            <tbody className="text-sm">
+              <tr className="border-b">
+                <td className="py-3 text-gray-600">Base Award (selected packages)</td>
+                <td className="py-3 font-semibold text-right">{fmtCurr(base)}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 text-gray-600">Change Orders (Approved)</td>
+                <td className="py-3 font-semibold text-right">{fmtCurr(coImpact)}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-3 text-gray-600">Claims (Approved / Certified)</td>
+                <td className="py-3 font-semibold text-right">{fmtCurr(claimImpact)}</td>
+              </tr>
+              <tr>
+                <td className="py-3 text-gray-900 font-semibold">Actual Contract Value</td>
+                <td className="py-3 text-right text-gray-900 font-bold">{fmtCurr(actual)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p className="mt-3 text-xs text-gray-500">
+            Note: Only items with status <span className="font-semibold">Approved</span> are included.
+            For COs, uses <em>Actual</em> when available, otherwise <em>Estimated</em>. For Claims, uses
+            <em> Certified</em> when available, otherwise <em>Claimed</em>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** --------------------------
  * Main Page
@@ -506,10 +567,70 @@ const TIME_OPTIONS = [
   // IPCs Modal
   const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
   const [openModal, setOpenModal] = React.useState(false);
+  // ✅ NEW: Value Breakdown Modal
+const [breakdownOpen, setBreakdownOpen] = React.useState(false);
   const openIPCs = (pkg: PaymentPkg) => {
     setModalPkg(pkg);
     setOpenModal(true);
   };
+/** --------------------------
+ * Value Breakdown Modal (NEW)
+ * -------------------------- */
+function ValueBreakdownModal({
+  open,
+  onClose,
+  totalValue,
+  coTotal,
+  claimsTotal,
+}: {
+  open: boolean;
+  onClose: () => void;
+  totalValue: number;
+  coTotal: number;
+  claimsTotal: number;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl p-6">
+        <div className="flex items-center justify-between border-b pb-3">
+          <h3 className="text-lg font-semibold">Contract Value Breakdown</h3>
+          <button
+            onClick={onClose}
+            className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <div className="flex justify-between text-base">
+            <span className="text-gray-700">Original Contract Value</span>
+            <span className="font-semibold">AED {(totalValue - coTotal - claimsTotal).toLocaleString()}</span>
+          </div>
+
+          <div className="flex justify-between text-base">
+            <span className="text-gray-700">Change Orders (Approved)</span>
+            <span className="font-semibold text-emerald-700">+ AED {coTotal.toLocaleString()}</span>
+          </div>
+
+          <div className="flex justify-between text-base">
+            <span className="text-gray-700">Claims (Approved)</span>
+            <span className="font-semibold text-emerald-700">+ AED {claimsTotal.toLocaleString()}</span>
+          </div>
+
+          <hr />
+
+          <div className="flex justify-between text-lg font-bold">
+            <span>Total Actual Contract Value</span>
+            <span>AED {(totalValue).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
   
 // --- CO filter state ---
 const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
@@ -539,7 +660,29 @@ const claimsFiltered = React.useMemo(() => {
   );
 }, [claims, selectedPkgs, search, claimFilter, time]);
 
+// --- Totals: base + approved COs + approved/certified Claims ---
+const coImpact = React.useMemo(() => {
+  return cos
+    .filter(
+      (c) =>
+        selectedPkgs.includes(c.pkg) &&
+        c.status === "Approved" // only approved VOs affect contract value
+    )
+    .reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0);
+}, [selectedPkgs]);
 
+const claimImpact = React.useMemo(() => {
+  // Treat only APPROVED claims as affecting value; use certified if present, else claimed
+  return claims
+    .filter(
+      (c) =>
+        selectedPkgs.includes(c.pkg) &&
+        c.status === "Approved"
+    )
+    .reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0);
+}, [selectedPkgs]);
+
+const actualTotalValue = totalValue + coImpact + claimImpact;
 
 
   // derived totals
