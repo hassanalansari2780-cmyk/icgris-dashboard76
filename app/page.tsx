@@ -572,66 +572,15 @@ const [breakdownOpen, setBreakdownOpen] = React.useState(false);
   const openIPCs = (pkg: PaymentPkg) => {
     setModalPkg(pkg);
     setOpenModal(true);
+<ValueBreakdownModal
+  open={breakdownOpen}
+  onClose={() => setBreakdownOpen(false)}
+  base={baseTotalValue}
+  coImpact={coImpact}
+  claimImpact={claimImpact}
+/>
   };
-/** --------------------------
- * Value Breakdown Modal (NEW)
- * -------------------------- */
-function ValueBreakdownModal({
-  open,
-  onClose,
-  totalValue,
-  coTotal,
-  claimsTotal,
-}: {
-  open: boolean;
-  onClose: () => void;
-  totalValue: number;
-  coTotal: number;
-  claimsTotal: number;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl p-6">
-        <div className="flex items-center justify-between border-b pb-3">
-          <h3 className="text-lg font-semibold">Contract Value Breakdown</h3>
-          <button
-            onClick={onClose}
-            className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          <div className="flex justify-between text-base">
-            <span className="text-gray-700">Original Contract Value</span>
-            <span className="font-semibold">AED {(totalValue - coTotal - claimsTotal).toLocaleString()}</span>
-          </div>
-
-          <div className="flex justify-between text-base">
-            <span className="text-gray-700">Change Orders (Approved)</span>
-            <span className="font-semibold text-emerald-700">+ AED {coTotal.toLocaleString()}</span>
-          </div>
-
-          <div className="flex justify-between text-base">
-            <span className="text-gray-700">Claims (Approved)</span>
-            <span className="font-semibold text-emerald-700">+ AED {claimsTotal.toLocaleString()}</span>
-          </div>
-
-          <hr />
-
-          <div className="flex justify-between text-lg font-bold">
-            <span>Total Actual Contract Value</span>
-            <span>AED {(totalValue).toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-  
+ 
 // --- CO filter state ---
 const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
 const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("All");
@@ -640,6 +589,21 @@ const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("Al
 const CLAIM_STATUSES = ["All", "Submitted", "In Review", "Approved", "Rejected"] as const;
 const [claimFilter, setClaimFilter] =
   React.useState<(typeof CLAIM_STATUSES)[number]>("All");
+  
+// --- Totals: base + approved COs + approved/certified Claims ---
+const coImpact = React.useMemo(() => {
+  return cos
+    .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+    .reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0);
+}, [selectedPkgs]);
+
+const claimImpact = React.useMemo(() => {
+  return claims
+    .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+    .reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0);
+}, [selectedPkgs]);
+
+const actualTotalValue = baseTotalValue + coImpact + claimImpact;
 
 // ONE unified filtered array for COs: package + search + status pill
 const cosFiltered = React.useMemo(() => {
@@ -787,21 +751,22 @@ const actualTotalValue = totalValue + coImpact + claimImpact;
               <div className="text-2xl font-bold">{fmtCurr(totalValue)}</div>
             </CardBody>
           </Card>
-          <Card>
-            <CardHeader title="Paid to Date" />
-            <CardBody>
-              <div className="text-2xl font-bold">{fmtCurr(totalPaid)}</div>
-              <div className="mt-2 text-sm text-gray-500">Overall % paid</div>
-              <div className="mt-1 flex items-center gap-3">
-                <div className="w-full">
-                  <Progress value={(totalPaid / totalValue) * 100} />
-                </div>
-                <div className="w-12 text-right text-sm font-semibold">
-                  {fmtPct(percentPaid)}
-                </div>
-              </div>
-            </CardBody>
-          </Card>
+<Card>
+  <CardHeader title="Actual Total Contract Value" />
+  <CardBody>
+    <div className="text-2xl font-bold">{fmtCurr(actualTotalValue)}</div>
+    <div className="mt-1 text-sm text-gray-500">
+      Base {fmtCurr(baseTotalValue)} • +COs {fmtCurr(coImpact)} • +Claims {fmtCurr(claimImpact)}
+    </div>
+    <button
+      onClick={() => setBreakdownOpen(true)}
+      className="mt-3 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+    >
+      View Breakdown
+    </button>
+  </CardBody>
+</Card>
+
           <Card>
             <CardHeader title="Change Orders (COs)" />
             <CardBody>
