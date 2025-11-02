@@ -473,7 +473,6 @@ function IPCsModal({
  * Main Page
  * -------------------------- */
 export default function Page() {
-  const [role, setRole] = React.useState<string>("All");
   const [selectedPkgs, setSelectedPkgs] = React.useState<PaymentPkg["id"][]>(
     ["A", "B", "C", "D", "F", "G", "I2", "PMEC"]
   );
@@ -554,16 +553,6 @@ const claimsFiltered = React.useMemo(() => {
         {/* Filters */}
         <Card className="mt-6">
           <CardBody className="pt-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="mr-2 font-semibold">Role:</div>
-              {["All", "Contracts", "Finance", "Legal", "Project", "Operation", "PMEC"].map(
-                (r) => (
-                  <Pill key={r} active={role === r} onClick={() => setRole(r)}>
-                    {r}
-                  </Pill>
-                )
-              )}
-            </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <div className="mr-2 font-semibold">Packages:</div>
