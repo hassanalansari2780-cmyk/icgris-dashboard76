@@ -708,59 +708,53 @@ const claimsFiltered = React.useMemo(() => {
 
         {/* Provisional Sum Utilization */}
         <h2 className="mt-12 text-2xl font-bold">Provisional Sum Utilization</h2>
-        <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {visiblePkgs.map((p) => {
-            const used = { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 }[
-              p.id
-            ] ?? 0;
-            const approved = {
-              A: 35,
-              B: 12,
-              C: 30,
-              D: 18,
-              F: 21,
-              G: 9,
-              I2: 7,
-              PMEC: 10,
-            }[p.id] ?? 0;
-            const pending = {
-              A: 12,
-              B: 25,
-              C: 10,
-              D: 22,
-              F: 9,
-              G: 19,
-              I2: 12,
-              PMEC: 5,
-            }[p.id] ?? 0;
-            return (
-              <Card key={`psu-${p.id}`} className={`ring-1 ${p.color}`}>
-                <CardBody className="pt-5">
-                  <div className="mb-2 text-lg font-semibold text-gray-900">
-                    {p.id === "PMEC" ? "Package PMEC" : `Package ${p.id}`}
-                  </div>
-                  <div className="grid gap-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Used</span>
-                      <span className="font-semibold">{used}%</span>
-                    </div>
-                    <Progress value={used} />
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Approved</span>
-                      <span className="font-semibold">{approved}%</span>
-                    </div>
-                    <Progress value={approved} />
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Pending</span>
-                      <span className="font-semibold">{pending}%</span>
-                    </div>
-                    <Progress value={pending} />
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
-        </div>
+       <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+  {visiblePkgs.map((p) => {
+    // --- NEW: Provisional Sum values per package (example numbers) ---
+    const totalPS = { A: 10_000_000, B: 7_500_000, C: 12_000_000, D: 4_000_000, F: 8_500_000, G: 2_500_000, I2: 3_200_000, PMEC: 1_800_000 }[p.id] ?? 0;
+
+    // Update the percentages (rename Approved → In Review, Pending → Remaining)
+    const used =  { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 }[p.id] ?? 0;
+    const inReview = { A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7, PMEC: 10 }[p.id] ?? 0;
+    const remaining = 100 - used - inReview;
+
+    return (
+      <Card key={`psu-${p.id}`} className={`ring-1 ${p.color}`}>
+        <CardBody className="pt-5">
+          <div className="mb-2 text-lg font-semibold text-gray-900">
+            {p.id === "PMEC" ? "Package PMEC" : `Package ${p.id}`}
+          </div>
+
+          {/* NEW: Show total amount */}
+          <div className="text-sm text-gray-500">Total Provisional Sum</div>
+          <div className="text-xl font-bold mb-4">{fmtCurr(totalPS)}</div>
+
+          <div className="grid gap-3 text-sm">
+
+            <div className="flex items-center justify-between">
+              <span className="text-gray-700">Used</span>
+              <span className="font-semibold">{used}%</span>
+            </div>
+            <Progress value={used} />
+
+            <div className="flex items-center justify-between">
+              <span className="text-gray-700">In Review</span>
+              <span className="font-semibold">{inReview}%</span>
+            </div>
+            <Progress value={inReview} />
+
+            <div className="flex items-center justify-between">
+              <span className="text-gray-700">Remaining</span>
+              <span className="font-semibold">{remaining}%</span>
+            </div>
+            <Progress value={remaining} />
+
+          </div>
+        </CardBody>
+      </Card>
+    );
+  })}
+</div>
 
    {/* Change Orders (COs) */}
 <h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
