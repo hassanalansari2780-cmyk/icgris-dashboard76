@@ -577,61 +577,64 @@ const claimsFiltered = React.useMemo(() => {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 pb-20">
-        {/* Filters */}
-        <Card className="mt-6">
-          <CardBody className="pt-5">
+{/* Filters */}
+<Card className="mt-6">
+  <CardBody className="pt-5">
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      <div className="mr-2 font-semibold">Packages:</div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <div className="mr-2 font-semibold">Packages:</div>
-              {allPkgs.map((p) => {
-                const active = selectedPkgs.includes(p);
-                return (
-                  <button
-                    key={p}
-                    onClick={() => togglePkg(p)}
-                    className={`h-10 w-10 rounded-full text-sm font-semibold transition ${
-                      active
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-              <button
-                className="ml-2 rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
-                onClick={() => setSelectedPkgs(allPkgs)}
-              >
-                All
-              </button>
-              <button
-                className="rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
-                onClick={() => setSelectedPkgs([])}
-              >
-                None
-              </button>
+      {allPkgs.map((p) => {
+        const active = selectedPkgs.includes(p);
+        return (
+          <button
+            key={p}
+            onClick={() => togglePkg(p)}
+            className={`h-10 w-10 rounded-full text-sm font-semibold transition ${
+              active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+            }`}
+          >
+            {p}
+          </button>
+        );
+      })}
 
-              <div className="ml-auto flex items-center gap-3">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search titles..."
-                  className="w-72 rounded-xl border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-gray-900"
-                />
-                <div className="hidden items-center gap-2 md:flex">
+      <button
+        className="ml-2 rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+        onClick={() => setSelectedPkgs(allPkgs)}
+      >
+        All
+      </button>
+      <button
+        className="rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+        onClick={() => setSelectedPkgs([])}
+      >
+        None
+      </button>
 
-<div className="hidden items-center gap-2 md:flex">
-  {TIME_OPTIONS.map((t) => (
-    <Pill
-      key={t.key}
-      active={time === t.key}
-      onClick={() => setTime(t.key)}
-    >
-      {t.label}
-    </Pill>
-  ))}
-</div>
+      {/* search + time pills */}
+      <div className="ml-auto flex items-center gap-3">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search titles..."
+          className="w-72 rounded-xl border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-gray-900"
+        />
+
+        <div className="hidden items-center gap-2 md:flex">
+          {TIME_OPTIONS.map((t) => (
+            <Pill
+              key={t.key}
+              active={time === t.key}
+              onClick={() => setTime(t.key)}
+            >
+              {t.label}
+            </Pill>
+          ))}
+        </div>
+      </div>
+    </div>
+  </CardBody>
+</Card>
 
         {/* KPI Cards */}
         <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
