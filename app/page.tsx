@@ -777,6 +777,77 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
 }, []);
+// ===== Provisional Sum (PS) helpers =====
+const getPSTotal = React.useCallback((id: PaymentPkg["id"]) => {
+  const totals: Record<PaymentPkg["id"], number> = {
+    A: 10_000_000,
+    B: 7_500_000,
+    C: 12_000_000,
+    D: 4_000_000,
+    F: 8_500_000,
+    G: 2_500_000,
+    I2: 3_200_000,
+    PMEC: 1_800_000,
+  };
+  return totals[id] ?? 0;
+}, []);
+
+const getPSPercents = React.useCallback((id: PaymentPkg["id"]) => {
+  const used: Record<PaymentPkg["id"], number> =   { A:22, B:31, C:44, D:10, F:51, G:6,  I2:28, PMEC:12 };
+  const revw: Record<PaymentPkg["id"], number> =   { A:35, B:12, C:30, D:18, F:21, G:9,  I2:7,  PMEC:10 };
+  const usedPct = used[id] ?? 0;
+  const inReviewPct = revw[id] ?? 0;
+  const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
+  return { usedPct, inReviewPct, remainingPct };
+}, []);
+
+// Build flat rows for CSV from currently visible packages
+const psRows = React.useMemo(() => {
+  return payments
+    .filter(p => selectedPkgs.includes(p.id))
+    .map(p => {
+      const totalPS = getPSTotal(p.id);
+      const { usedPct, inReviewPct, remainingPct } = getPSPercents(p.id);
+      const usedAmt = Math.round((totalPS * usedPct) / 100);
+      const inReviewAmt = Math.round((totalPS * inReviewPct) / 100);
+      const remainingAmt = Math.max(0, totalPS - usedAmt - inReviewAmt);
+
+      return {
+        package: p.id,
+        title: p.title,
+        total_ps: totalPS,
+        used_pct: usedPct,
+        used_amt: usedAmt,
+        in_review_pct: inReviewPct,
+        in_review_amt: inReviewAmt,
+        remaining_pct: remainingPct,
+        remaining_amt: remainingAmt,
+      };
+    });
+}, [payments, selectedPkgs, getPSTotal, getPSPercents]);
+
+// Generic CSV exporter
+function downloadCSV(filename: string, rows: Record<string, any>[]) {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const esc = (v: any) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv =
+    headers.join(",") + "\n" +
+    rows.map(r => headers.map(h => esc(r[h])).join(",")).join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
   
 // Each package's brand color for the filter pills
 const PKG_STYLES: Record<PaymentPkg["id"], {
@@ -1033,7 +1104,19 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
         </div>
 
         {/* Provisional Sum Utilization */}
-        <h2 className="mt-12 text-2xl font-bold">Provisional Sum Utilization</h2>
+        {/* Provisional Sum Utilization */}
+<div className="mt-12 flex items-center justify-between">
+  <h2 className="text-2xl font-bold">Provisional Sum Utilization</h2>
+
+  {/* ✅ CSV Export button */}
+  <button
+    onClick={() => downloadCSV("Provisional_Sum_Utilization.csv", psRows)}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export CSV
+  </button>
+</div>
+
 <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
   {visiblePkgs.map((p) => {
     // Total PS amount per package (edit these to your real totals)
