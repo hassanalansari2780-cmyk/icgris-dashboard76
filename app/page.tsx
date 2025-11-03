@@ -63,16 +63,41 @@ function csvEscape(val: unknown): string {
   return s;
 }
 
-function downloadCSV(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+function downloadCSV(
+  filename: string,
+  a: Record<string, any>[] | string[],
+  b?: (string | number | null | undefined)[][]
+) {
+  // Decide mode: (headers + array rows)  OR  (array of objects)
+  const hasExplicitHeaders = Array.isArray(a) && (a.length === 0 || typeof a[0] === "string");
+
+  let headers: string[] = [];
+  let rowsArray: (string | number | null | undefined)[][] = [];
+
+  if (hasExplicitHeaders) {
+    // Signature: downloadCSV(filename, headers[], rows[][])
+    headers = (a as string[]) ?? [];
+    rowsArray = (b as (string | number | null | undefined)[][]) ?? [];
+  } else {
+    // Signature: downloadCSV(filename, rowsObj[])
+    const rowsObj = (a as Record<string, any>[]) ?? [];
+    if (!rowsObj.length) return;
+    headers = Object.keys(rowsObj[0]);
+    rowsArray = rowsObj.map((r) => headers.map((h) => r[h]));
+  }
+
   const head = headers.map(csvEscape).join(",");
-  const body = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const body = rowsArray.map((r) => r.map(csvEscape).join(",")).join("\n");
   const csv = head + "\n" + body;
+
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const aTag = document.createElement("a");
+  aTag.href = url;
+  aTag.download = filename;
+  document.body.appendChild(aTag);
+  aTag.click();
+  aTag.remove();
   URL.revokeObjectURL(url);
 }
 
@@ -825,29 +850,6 @@ const psRows = React.useMemo(() => {
       };
     });
 }, [payments, selectedPkgs, getPSTotal, getPSPercents]);
-
-// Generic CSV exporter
-function downloadCSV(filename: string, rows: Record<string, any>[]) {
-  if (!rows.length) return;
-  const headers = Object.keys(rows[0]);
-  const esc = (v: any) => {
-    const s = String(v ?? "");
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv =
-    headers.join(",") + "\n" +
-    rows.map(r => headers.map(h => esc(r[h])).join(",")).join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
   
 // Each package's brand color for the filter pills
 const PKG_STYLES: Record<PaymentPkg["id"], {
