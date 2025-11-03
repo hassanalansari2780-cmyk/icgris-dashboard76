@@ -623,6 +623,9 @@ const totalPaid = React.useMemo(
 );
 const percentPaid = baseTotalValue ? (totalPaid / baseTotalValue) * 100 : 0;
 
+  const percentPaidOfActual =
+  actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+
 // Impacts from APPROVED COs and APPROVED Claims
 const coImpact = React.useMemo(
   () =>
@@ -732,15 +735,9 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
   </CardBody>
 </Card>
 
-       {/* KPI Cards */}
+     {/* KPI Cards */}
 <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-  <Card>
-    <CardHeader title="Total Contract Value (Awarded Base)" />
-    <CardBody>
-      <div className="text-2xl font-bold">{fmtCurr(baseTotalValue)}</div>
-    </CardBody>
-  </Card>
-
+  {/* 1) Actual Total Contract Value (FIRST) */}
   <Card>
     <CardHeader title="Actual Total Contract Value" />
     <CardBody>
@@ -757,6 +754,24 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
     </CardBody>
   </Card>
 
+  {/* 2) Paid to Date (SECOND) */}
+  <Card>
+    <CardHeader title="Paid to Date" />
+    <CardBody>
+      <div className="text-2xl font-bold">{fmtCurr(totalPaid)}</div>
+      <div className="mt-2 text-sm text-gray-500">of Actual Value</div>
+      <div className="mt-1 flex items-center gap-3">
+        <div className="w-full">
+          <Progress value={percentPaidOfActual} />
+        </div>
+        <div className="w-12 text-right text-sm font-semibold">
+          {fmtPct(percentPaidOfActual)}
+        </div>
+      </div>
+    </CardBody>
+  </Card>
+
+  {/* 3) COs */}
   <Card>
     <CardHeader title="Change Orders (COs)" />
     <CardBody>
@@ -767,6 +782,7 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
     </CardBody>
   </Card>
 
+  {/* 4) Claims */}
   <Card>
     <CardHeader title="Claims" />
     <CardBody>
