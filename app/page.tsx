@@ -777,6 +777,22 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
 }, []);
+  
+// Each package's brand color for the filter pills
+const PKG_STYLES: Record<PaymentPkg["id"], {
+  active: string;     // filled background when selected
+  inactive: string;   // border/text when not selected
+  hover: string;      // hover bg for inactive
+}> = {
+  A:   { active: "bg-blue-600",    inactive: "border-blue-300 text-blue-700",    hover: "hover:bg-blue-50" },
+  B:   { active: "bg-emerald-600", inactive: "border-emerald-300 text-emerald-700", hover: "hover:bg-emerald-50" },
+  C:   { active: "bg-orange-600",  inactive: "border-orange-300 text-orange-700",  hover: "hover:bg-orange-50" },
+  D:   { active: "bg-red-600",     inactive: "border-red-300 text-red-700",        hover: "hover:bg-red-50" },
+  F:   { active: "bg-violet-600",  inactive: "border-violet-300 text-violet-700",  hover: "hover:bg-violet-50" },
+  G:   { active: "bg-teal-600",    inactive: "border-teal-300 text-teal-700",      hover: "hover:bg-teal-50" },
+  I2:  { active: "bg-orange-700",  inactive: "border-orange-300 text-orange-700",  hover: "hover:bg-orange-50" },
+  PMEC:{ active: "bg-violet-700",  inactive: "border-violet-300 text-violet-700",  hover: "hover:bg-violet-50" },
+};
 
   const allPkgs = [
     "A",
@@ -833,20 +849,26 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
     <div className="mt-5 flex flex-wrap items-center gap-2">
       <div className="mr-2 font-semibold">Packages:</div>
 
-      {allPkgs.map((p) => {
-        const active = selectedPkgs.includes(p);
-        return (
-          <button
-            key={p}
-            onClick={() => togglePkg(p)}
-            className={`h-10 w-10 rounded-full text-sm font-semibold transition ${
-              active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-            }`}
-          >
-            {p}
-          </button>
-        );
-      })}
+     {allPkgs.map((p) => {
+  const active = selectedPkgs.includes(p);
+  const s = PKG_STYLES[p];
+  return (
+    <button
+      key={p}
+      onClick={() => togglePkg(p)}
+      className={[
+        "h-10 w-10 rounded-full text-sm font-semibold transition",
+        active
+          ? `${s.active} text-white`
+          : `bg-white border ${s.inactive} ${s.hover}`
+      ].join(" ")}
+      aria-pressed={active}
+      title={`Toggle Package ${p}`}
+    >
+      {p}
+    </button>
+  );
+})}
 
       <button
         className="ml-2 rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
