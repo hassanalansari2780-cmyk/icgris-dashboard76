@@ -781,6 +781,29 @@ const exportClaimsCSV = React.useCallback(() => {
   });
   downloadCSV("claims.csv", headers, rows);
 }, [claimsFiltered]);
+// ===== Provisional Sum (PS) helpers — hoisted version (fixes build error) =====
+function getPSTotal(id: PaymentPkg["id"]): number {
+  const totals: Record<PaymentPkg["id"], number> = {
+    A: 10_000_000,
+    B: 7_500_000,
+    C: 12_000_000,
+    D: 4_000_000,
+    F: 8_500_000,
+    G: 2_500_000,
+    I2: 3_200_000,
+    PMEC: 1_800_000,
+  };
+  return totals[id] ?? 0;
+}
+
+function getPSPercents(id: PaymentPkg["id"]) {
+  const used: Record<PaymentPkg["id"], number> = { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 };
+  const revw: Record<PaymentPkg["id"], number> = { A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7, PMEC: 10 };
+  const usedPct = used[id] ?? 0;
+  const inReviewPct = revw[id] ?? 0;
+  const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
+  return { usedPct, inReviewPct, remainingPct };
+}
 
 // Replace your current exportSummaryCSV with this:
 const exportSummaryCSV = React.useCallback(() => {
@@ -846,7 +869,7 @@ const exportSummaryCSV = React.useCallback(() => {
   downloadCSV("summary.csv", rows);
 }, [
   selectedPkgs, baseTotalValue, coImpact, claimImpact, actualTotalValue, totalPaid,
-  percentPaidOfActual, cosFiltered, claimsFiltered, getPSTotal, getPSPercents
+  percentPaidOfActual, cosFiltered, claimsFiltered,
 ]);
 
   // ✅ Toggle package selection (used by the package pills)
@@ -854,29 +877,6 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
   setSelectedPkgs((prev) =>
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
-}, []);
-// ===== Provisional Sum (PS) helpers =====
-const getPSTotal = React.useCallback((id: PaymentPkg["id"]) => {
-  const totals: Record<PaymentPkg["id"], number> = {
-    A: 10_000_000,
-    B: 7_500_000,
-    C: 12_000_000,
-    D: 4_000_000,
-    F: 8_500_000,
-    G: 2_500_000,
-    I2: 3_200_000,
-    PMEC: 1_800_000,
-  };
-  return totals[id] ?? 0;
-}, []);
-
-const getPSPercents = React.useCallback((id: PaymentPkg["id"]) => {
-  const used: Record<PaymentPkg["id"], number> =   { A:22, B:31, C:44, D:10, F:51, G:6,  I2:28, PMEC:12 };
-  const revw: Record<PaymentPkg["id"], number> =   { A:35, B:12, C:30, D:18, F:21, G:9,  I2:7,  PMEC:10 };
-  const usedPct = used[id] ?? 0;
-  const inReviewPct = revw[id] ?? 0;
-  const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
-  return { usedPct, inReviewPct, remainingPct };
 }, []);
 
 // Build flat rows for CSV from currently visible packages
@@ -1166,7 +1166,6 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
           })}
         </div>
 
-        {/* Provisional Sum Utilization */}
         {/* Provisional Sum Utilization */}
 <div className="mt-12 flex items-center justify-between">
   <h2 className="text-2xl font-bold">Provisional Sum Utilization</h2>
