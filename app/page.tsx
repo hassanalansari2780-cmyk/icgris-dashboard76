@@ -889,33 +889,41 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
 </p>
 
 
-  {/* Centered export actions */}
-  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-    <button
-      onClick={exportSummaryCSV}
-      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-    >
-      Export Summary
-    </button>
-    <button
-      onClick={exportPaymentsCSV}
-      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-    >
-      Export Payments
-    </button>
-    <button
-      onClick={exportCOsCSV}
-      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-    >
-      Export COs
-    </button>
-    <button
-      onClick={exportClaimsCSV}
-      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-    >
-      Export Claims
-    </button>
-  </div>
+{/* Centered export actions */}
+<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+  <button
+    onClick={exportSummaryCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Summary
+  </button>
+  <button
+    onClick={exportPaymentsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Payments
+  </button>
+  <button
+    onClick={exportCOsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export COs
+  </button>
+  <button
+    onClick={exportClaimsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Claims
+  </button>
+  {/* NEW: Provisional Sum Utilization */}
+  <button
+    onClick={() => downloadCSV("Provisional_Sum_Utilization.csv", psRows)}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export PS
+  </button>
+</div>
+
 </header>
 
       <main className="mx-auto max-w-7xl px-6 pb-20">
