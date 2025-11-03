@@ -643,6 +643,12 @@ const claimImpact = React.useMemo(
 // Actual = Base + COs(approved) + Claims(approved)
 const actualTotalValue = baseTotalValue + coImpact + claimImpact;
 
+  // ✅ Toggle package selection (used by the package pills)
+const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
+  setSelectedPkgs((prev) =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+  );
+}, []);
 
   const allPkgs = [
     "A",
