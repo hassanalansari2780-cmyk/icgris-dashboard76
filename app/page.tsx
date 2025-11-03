@@ -782,19 +782,72 @@ const exportClaimsCSV = React.useCallback(() => {
   downloadCSV("claims.csv", headers, rows);
 }, [claimsFiltered]);
 
-// Optional: quick summary export for headline KPIs
+// Replace your current exportSummaryCSV with this:
 const exportSummaryCSV = React.useCallback(() => {
-  const headers = ["Metric", "Value (AED)"];
-  const rows = [
-    ["Base Awarded (selected)", baseTotalValue],
-    ["Approved COs Impact", coImpact],
-    ["Approved Claims Impact", claimImpact],
-    ["Actual Total Contract Value", actualTotalValue],
-    ["Paid to Date (all visible packages)", totalPaid],
-  ];
-  downloadCSV("summary.csv", headers, rows);
-}, [baseTotalValue, coImpact, claimImpact, actualTotalValue, totalPaid]);
+  // --- CO + Claim aggregates with current filters ---
+  const coApproved = cos
+    .filter(c => selectedPkgs.includes(c.pkg) && c.status === "Approved");
+  const coApprovedAmt = coApproved
+    .reduce((s, c) => s + (c.actual ?? c.estimated ?? 0), 0);
 
+  const claimsOpenCnt = claimsFiltered
+    .filter(c => c.status === "In Review" || c.status === "Submitted").length;
+  const claimsApproved = claimsFiltered
+    .filter(c => c.status === "Approved");
+  const claimsApprovedAmt = claimsApproved
+    .reduce((s, c) => s + (c.certified ?? c.claimed ?? 0), 0);
+
+  // --- Provisional Sum aggregates for visible packages ---
+  const psAgg = visiblePkgs.reduce(
+    (acc, p) => {
+      const total = getPSTotal(p.id);
+      const { usedPct, inReviewPct } = getPSPercents(p.id);
+      const usedAmt = Math.round((total * usedPct) / 100);
+      const revAmt  = Math.round((total * inReviewPct) / 100);
+      acc.total += total; acc.used += usedAmt; acc.review += revAmt;
+      return acc;
+    },
+    { total: 0, used: 0, review: 0 }
+  );
+  const psRemaining = Math.max(0, psAgg.total - psAgg.used - psAgg.review);
+
+  // --- Build one flat table ---
+  const rows = [
+    { Section: "Context",     Metric: "Exported At",                 Value: new Date().toLocaleString() },
+    { Section: "Context",     Metric: "Selected Packages",           Value: selectedPkgs.join(" ") },
+    { Section: "",            Metric: "",                            Value: "" },
+
+    { Section: "Totals",      Metric: "Base Awarded (selected)",     Value: baseTotalValue },
+    { Section: "Totals",      Metric: "Approved COs Impact",         Value: coImpact },
+    { Section: "Totals",      Metric: "Approved Claims Impact",      Value: claimImpact },
+    { Section: "Totals",      Metric: "Actual Total Contract Value", Value: actualTotalValue },
+    { Section: "Totals",      Metric: "Paid to Date",                 Value: totalPaid },
+    { Section: "Totals",      Metric: "% Paid of Actual",            Value: Math.round(percentPaidOfActual) + "%" },
+    { Section: "",            Metric: "",                            Value: "" },
+
+    { Section: "COs",         Metric: "Count (visible filters)",     Value: cosFiltered.length },
+    { Section: "COs",         Metric: "Approved Count",              Value: coApproved.length },
+    { Section: "COs",         Metric: "Approved Amount",             Value: coApprovedAmt },
+    { Section: "",            Metric: "",                            Value: "" },
+
+    { Section: "Claims",      Metric: "Count (visible filters)",     Value: claimsFiltered.length },
+    { Section: "Claims",      Metric: "Open (Submitted + In Review)",Value: claimsOpenCnt },
+    { Section: "Claims",      Metric: "Approved Count",              Value: claimsApproved.length },
+    { Section: "Claims",      Metric: "Approved Amount",             Value: claimsApprovedAmt },
+    { Section: "",            Metric: "",                            Value: "" },
+
+    { Section: "Provisional Sums", Metric: "Total PS",               Value: psAgg.total },
+    { Section: "Provisional Sums", Metric: "Used",                   Value: psAgg.used },
+    { Section: "Provisional Sums", Metric: "In Review",              Value: psAgg.review },
+    { Section: "Provisional Sums", Metric: "Remaining",              Value: psRemaining },
+  ];
+
+  // Uses the Option-B helper (object-array signature)
+  downloadCSV("summary.csv", rows);
+}, [
+  selectedPkgs, baseTotalValue, coImpact, claimImpact, actualTotalValue, totalPaid,
+  percentPaidOfActual, cosFiltered, claimsFiltered, getPSTotal, getPSPercents
+]);
 
   // ✅ Toggle package selection (used by the package pills)
 const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
