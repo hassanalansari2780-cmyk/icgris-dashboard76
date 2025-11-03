@@ -808,12 +808,13 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
   return (
     <div className="min-h-screen bg-white">
 <header className="mx-auto max-w-7xl px-6 pt-8 text-center">
-  <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
-    IPCCMIS Dashboard
-  </h1>
-  <p className="mt-1 text-gray-600">
-    Integrated Project Control &amp; Contract Management Intelligence System
-  </p>
+<h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+  Project Control & Contract Management Dashboard
+</h1>
+<p className="mt-1 text-gray-600">
+  Real-time visibility over Payments, COs, Claims, AP, and Provisional Sums
+</p>
+
 
   {/* Centered export actions */}
   <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
