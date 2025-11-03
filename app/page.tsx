@@ -564,64 +564,49 @@ const TIME_OPTIONS = [
   { label: "YTD",      key: "YTD"  as const },
 ] as const;
   
-  // IPCs Modal
-  const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
-  const [openModal, setOpenModal] = React.useState(false);
-  // ✅ NEW: Value Breakdown Modal
-const [breakdownOpen, setBreakdownOpen] = React.useState(false);
-  const openIPCs = (pkg: PaymentPkg) => {
-    setModalPkg(pkg);
-    setOpenModal(true);
-<ValueBreakdownModal
-  open={breakdownOpen}
-  onClose={() => setBreakdownOpen(false)}
-  base={baseTotalValue}
-  coImpact={coImpact}
-  claimImpact={claimImpact}
-/>
-  };
- 
-// --- CO filter state ---
-const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
-const [coFilter, setCoFilter] = React.useState<(typeof CO_STATUSES)[number]>("All");
+// === Modals state ===
+const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
+const [openModal, setOpenModal] = React.useState(false);
 
-// --- CLAIMS filter state ---
+// Value Breakdown modal
+const [breakdownOpen, setBreakdownOpen] = React.useState(false);
+
+// Open IPCs/AP modal for a specific package
+const openIPCs = (pkg: PaymentPkg) => {
+  setModalPkg(pkg);
+  setOpenModal(true);
+};
+ 
+// === Filters & filtered arrays for COs & Claims ===
+const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
+const [coFilter, setCoFilter] =
+  React.useState<(typeof CO_STATUSES)[number]>("All");
+
 const CLAIM_STATUSES = ["All", "Submitted", "In Review", "Approved", "Rejected"] as const;
 const [claimFilter, setClaimFilter] =
   React.useState<(typeof CLAIM_STATUSES)[number]>("All");
-  
-// --- Totals: base + approved COs + approved/certified Claims ---
-const coImpact = React.useMemo(() => {
-  return cos
-    .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
-    .reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0);
-}, [selectedPkgs]);
 
-const claimImpact = React.useMemo(() => {
-  return claims
-    .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
-    .reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0);
-}, [selectedPkgs]);
+const cosFiltered = React.useMemo(
+  () =>
+    cos.filter((c) =>
+      selectedPkgs.includes(c.pkg) &&
+      (!search || c.title.toLowerCase().includes(search.toLowerCase())) &&
+      (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
+    ),
+  [selectedPkgs, search, coFilter]
+);
 
-const actualTotalValue = baseTotalValue + coImpact + claimImpact;
+const claimsFiltered = React.useMemo(
+  () =>
+    claims.filter((c) =>
+      selectedPkgs.includes(c.pkg) &&
+      (!search || c.title.toLowerCase().includes(search.toLowerCase())) &&
+      (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
+      inTimeRange(c.date)
+    ),
+  [selectedPkgs, search, claimFilter, inTimeRange]
+);
 
-// ONE unified filtered array for COs: package + search + status pill
-const cosFiltered = React.useMemo(() => {
-  return cos.filter((c) =>
-    selectedPkgs.includes(c.pkg) &&
-    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
-    (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
-  );
-}, [cos, selectedPkgs, search, coFilter]);
-
-// ONE unified filtered array for Claims: package + search + status pill
-const claimsFiltered = React.useMemo(() => {
-  return claims.filter((c) =>
-    selectedPkgs.includes(c.pkg) &&
-    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
-    (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
-    inTimeRange(c.date) // ✅ NEW
-  );
 }, [claims, selectedPkgs, search, claimFilter, time]);
 
 // --- Totals: base + approved COs + approved/certified Claims ---
@@ -649,17 +634,12 @@ const claimImpact = React.useMemo(() => {
 const actualTotalValue = totalValue + coImpact + claimImpact;
 
 
-  // derived totals
-  const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
-  const totalValue = visiblePkgs.reduce((s, p) => s + p.value, 0);
-  const totalPaid = visiblePkgs.reduce((s, p) => s + p.paid, 0);
-  const percentPaid = (totalPaid / totalValue) * 100;
+// derived totals
+const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
+const totalValue = visiblePkgs.reduce((s, p) => s + p.value, 0);
+const totalPaid = visiblePkgs.reduce((s, p) => s + p.paid, 0);
+const percentPaid = (totalPaid / totalValue) * 100;
 
-  const togglePkg = (id: PaymentPkg["id"]) => {
-    setSelectedPkgs((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   const allPkgs = [
     "A",
@@ -744,54 +724,60 @@ const actualTotalValue = totalValue + coImpact + claimImpact;
 </Card>
 
         {/* KPI Cards */}
-        <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader title="Total Contract Value" />
-            <CardBody>
-              <div className="text-2xl font-bold">{fmtCurr(totalValue)}</div>
-            </CardBody>
-          </Card>
-<Card>
-  <CardHeader title="Actual Total Contract Value" />
-  <CardBody>
-    <div className="text-2xl font-bold">{fmtCurr(actualTotalValue)}</div>
-    <div className="mt-1 text-sm text-gray-500">
-      Base {fmtCurr(baseTotalValue)} • +COs {fmtCurr(coImpact)} • +Claims {fmtCurr(claimImpact)}
-    </div>
-    <button
-      onClick={() => setBreakdownOpen(true)}
-      className="mt-3 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-    >
-      View Breakdown
-    </button>
-  </CardBody>
-</Card>
+<div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+  {/* Base/Awarded Contract Value */}
+  <Card>
+    <CardHeader title="Total Contract Value (Awarded)" />
+    <CardBody>
+      <div className="text-2xl font-bold">{fmtCurr(baseTotalValue)}</div>
+    </CardBody>
+  </Card>
 
-          <Card>
-            <CardHeader title="Change Orders (COs)" />
-            <CardBody>
-              <div className="text-2xl font-bold">{cosFiltered.length}</div>
-              <div className="mt-1 text-sm text-gray-500">
-                {cosFiltered.filter((c) => c.status === "Approved").length} approved
-              </div>
-            </CardBody>
-          </Card>
-          <Card>
-            <CardHeader title="Claims" />
-            <CardBody>
-              <div className="text-2xl font-bold">{claimsFiltered.length}</div>
-              <div className="mt-1 text-sm text-gray-500">
-                {
-                  claimsFiltered.filter(
-                    (c) => c.status === "In Review" || c.status === "Submitted"
-                  ).length
-                }{" "}
-                open •{" "}
-                {claimsFiltered.filter((c) => c.status === "Approved").length} approved
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+  {/* Actual Total Contract Value */}
+  <Card>
+    <CardHeader title="Actual Total Contract Value" />
+    <CardBody>
+      <div className="text-2xl font-bold">{fmtCurr(actualTotalValue)}</div>
+      <div className="mt-1 text-sm text-gray-500">
+        Base {fmtCurr(baseTotalValue)} • +COs {fmtCurr(coImpact)} • +Claims {fmtCurr(claimImpact)}
+      </div>
+      <button
+        onClick={() => setBreakdownOpen(true)}
+        className="mt-3 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+      >
+        View Breakdown
+      </button>
+    </CardBody>
+  </Card>
+
+  {/* COs */}
+  <Card>
+    <CardHeader title="Change Orders (COs)" />
+    <CardBody>
+      <div className="text-2xl font-bold">{cosFiltered.length}</div>
+      <div className="mt-1 text-sm text-gray-500">
+        {cosFiltered.filter((c) => c.status === "Approved").length} approved
+      </div>
+    </CardBody>
+  </Card>
+
+  {/* Claims */}
+  <Card>
+    <CardHeader title="Claims" />
+    <CardBody>
+      <div className="text-2xl font-bold">{claimsFiltered.length}</div>
+      <div className="mt-1 text-sm text-gray-500">
+        {
+          claimsFiltered.filter(
+            (c) => c.status === "In Review" || c.status === "Submitted"
+          ).length
+        }{" "}
+        open •{" "}
+        {claimsFiltered.filter((c) => c.status === "Approved").length} approved
+      </div>
+    </CardBody>
+  </Card>
+</div>
 
         {/* Payments by Contract */}
         <h2 className="mt-10 text-2xl font-bold">Payments by Contract</h2>
@@ -1122,13 +1108,20 @@ const actualTotalValue = totalValue + coImpact + claimImpact;
 
 </main>
 
-{/* Modal stays outside <main> but inside the page wrapper */}
+{/* Modals (render outside <main>) */}
 <IPCsModal
   open={openModal}
   onClose={() => setOpenModal(false)}
   pkg={modalPkg}
 />
 
+<ValueBreakdownModal
+  open={breakdownOpen}
+  onClose={() => setBreakdownOpen(false)}
+  base={baseTotalValue}
+  coImpact={coImpact}
+  claimImpact={claimImpact}
+/>
 </div>
 );
 }
