@@ -792,12 +792,12 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
   return (
     <div className="min-h-screen bg-white">
       <header className="mx-auto max-w-7xl px-6 pt-8">
-        <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
-          ICGRIS Dashboard
-        </h1>
-        <p className="mt-1 text-gray-600">
-          Integrated Contract Governance &amp; Risk Intelligence System
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">
+  IPCCMIS Dashboard
+</h1>
+<p className="text-sm text-gray-600">
+  Integrated Project Control & Contract Management Intelligence System
+</p>
       </header>
 <div className="mt-4 flex gap-2">
   <button
