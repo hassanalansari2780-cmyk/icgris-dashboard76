@@ -1073,7 +1073,6 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
 
 <Card className="mt-4">
   <CardHeader
-  <CardHeader
   right={
     <div className="flex gap-2">
       {CO_STATUSES.map((s) => (
