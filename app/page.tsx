@@ -577,68 +577,71 @@ const openIPCs = (pkg: PaymentPkg) => {
   setOpenModal(true);
 };
  
-// === Filters & filtered arrays for COs & Claims ===
+// --- CO filter state ---
 const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
 const [coFilter, setCoFilter] =
   React.useState<(typeof CO_STATUSES)[number]>("All");
 
+// --- CLAIMS filter state ---
 const CLAIM_STATUSES = ["All", "Submitted", "In Review", "Approved", "Rejected"] as const;
 const [claimFilter, setClaimFilter] =
   React.useState<(typeof CLAIM_STATUSES)[number]>("All");
 
-const cosFiltered = React.useMemo(
-  () =>
-    cos.filter((c) =>
-      selectedPkgs.includes(c.pkg) &&
-      (!search || c.title.toLowerCase().includes(search.toLowerCase())) &&
-      (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
-    ),
-  [selectedPkgs, search, coFilter]
+// ONE unified filtered array for COs: package + search + status pill
+const cosFiltered = React.useMemo(() => {
+  return cos.filter((c) =>
+    selectedPkgs.includes(c.pkg) &&
+    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+    (coFilter === "All" ? true : (c.status || "").trim() === coFilter)
+  );
+}, [selectedPkgs, search, coFilter]);
+
+// ONE unified filtered array for Claims: package + search + status pill + time
+const claimsFiltered = React.useMemo(() => {
+  return claims.filter((c) =>
+    selectedPkgs.includes(c.pkg) &&
+    (search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+    (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
+    inTimeRange(c.date)
+  );
+}, [selectedPkgs, search, claimFilter, time]);
+
+// === Derived totals (base/awarded) + impacts + actual ===
+const visiblePkgs = React.useMemo(
+  () => payments.filter((p) => selectedPkgs.includes(p.id)),
+  [selectedPkgs]
 );
 
-const claimsFiltered = React.useMemo(
+// BASE (awarded) totals
+const baseTotalValue = React.useMemo(
+  () => visiblePkgs.reduce((s, p) => s + p.value, 0),
+  [visiblePkgs]
+);
+const totalPaid = React.useMemo(
+  () => visiblePkgs.reduce((s, p) => s + p.paid, 0),
+  [visiblePkgs]
+);
+const percentPaid = baseTotalValue ? (totalPaid / baseTotalValue) * 100 : 0;
+
+// Impacts from APPROVED COs and APPROVED Claims
+const coImpact = React.useMemo(
   () =>
-    claims.filter((c) =>
-      selectedPkgs.includes(c.pkg) &&
-      (!search || c.title.toLowerCase().includes(search.toLowerCase())) &&
-      (claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
-      inTimeRange(c.date)
-    ),
-  [selectedPkgs, search, claimFilter, inTimeRange]
+    cos
+      .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+      .reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0),
+  [selectedPkgs]
 );
 
-}, [claims, selectedPkgs, search, claimFilter, time]);
+const claimImpact = React.useMemo(
+  () =>
+    claims
+      .filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+      .reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0),
+  [selectedPkgs]
+);
 
-// --- Totals: base + approved COs + approved/certified Claims ---
-const coImpact = React.useMemo(() => {
-  return cos
-    .filter(
-      (c) =>
-        selectedPkgs.includes(c.pkg) &&
-        c.status === "Approved" // only approved VOs affect contract value
-    )
-    .reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0);
-}, [selectedPkgs]);
-
-const claimImpact = React.useMemo(() => {
-  // Treat only APPROVED claims as affecting value; use certified if present, else claimed
-  return claims
-    .filter(
-      (c) =>
-        selectedPkgs.includes(c.pkg) &&
-        c.status === "Approved"
-    )
-    .reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0);
-}, [selectedPkgs]);
-
-const actualTotalValue = totalValue + coImpact + claimImpact;
-
-
-// derived totals
-const visiblePkgs = payments.filter((p) => selectedPkgs.includes(p.id));
-const totalValue = visiblePkgs.reduce((s, p) => s + p.value, 0);
-const totalPaid = visiblePkgs.reduce((s, p) => s + p.paid, 0);
-const percentPaid = (totalPaid / totalValue) * 100;
+// Actual = Base + COs(approved) + Claims(approved)
+const actualTotalValue = baseTotalValue + coImpact + claimImpact;
 
 
   const allPkgs = [
@@ -723,17 +726,15 @@ const percentPaid = (totalPaid / totalValue) * 100;
   </CardBody>
 </Card>
 
-        {/* KPI Cards */}
+       {/* KPI Cards */}
 <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-  {/* Base/Awarded Contract Value */}
   <Card>
-    <CardHeader title="Total Contract Value (Awarded)" />
+    <CardHeader title="Total Contract Value (Awarded Base)" />
     <CardBody>
       <div className="text-2xl font-bold">{fmtCurr(baseTotalValue)}</div>
     </CardBody>
   </Card>
 
-  {/* Actual Total Contract Value */}
   <Card>
     <CardHeader title="Actual Total Contract Value" />
     <CardBody>
@@ -750,7 +751,6 @@ const percentPaid = (totalPaid / totalValue) * 100;
     </CardBody>
   </Card>
 
-  {/* COs */}
   <Card>
     <CardHeader title="Change Orders (COs)" />
     <CardBody>
@@ -761,7 +761,6 @@ const percentPaid = (totalPaid / totalValue) * 100;
     </CardBody>
   </Card>
 
-  {/* Claims */}
   <Card>
     <CardHeader title="Claims" />
     <CardBody>
@@ -1125,4 +1124,3 @@ const percentPaid = (totalPaid / totalValue) * 100;
 </div>
 );
 }
-
