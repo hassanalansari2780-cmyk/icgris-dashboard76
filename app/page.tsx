@@ -617,14 +617,13 @@ const baseTotalValue = React.useMemo(
   () => visiblePkgs.reduce((s, p) => s + p.value, 0),
   [visiblePkgs]
 );
+
 const totalPaid = React.useMemo(
   () => visiblePkgs.reduce((s, p) => s + p.paid, 0),
   [visiblePkgs]
 );
-const percentPaid = baseTotalValue ? (totalPaid / baseTotalValue) * 100 : 0;
 
-  const percentPaidOfActual =
-  actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+const percentPaid = baseTotalValue ? (totalPaid / baseTotalValue) * 100 : 0;
 
 // Impacts from APPROVED COs and APPROVED Claims
 const coImpact = React.useMemo(
@@ -645,6 +644,11 @@ const claimImpact = React.useMemo(
 
 // Actual = Base + COs(approved) + Claims(approved)
 const actualTotalValue = baseTotalValue + coImpact + claimImpact;
+
+// % paid against ACTUAL value
+const percentPaidOfActual =
+  actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+
 
   // ✅ Toggle package selection (used by the package pills)
 const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
