@@ -52,6 +52,29 @@ const fmtDate = (iso: string) => {
     day: "2-digit",
   });
 };
+/** --------------------------
+ * CSV Export helpers
+ * -------------------------- */
+function csvEscape(val: unknown): string {
+  if (val == null) return "";
+  const s = String(val);
+  // wrap in quotes if contains comma, quote, or newline; escape quotes
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function downloadCSV(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+  const head = headers.map(csvEscape).join(",");
+  const body = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const csv = head + "\n" + body;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 type Status =
   | "Proposed"
@@ -648,6 +671,104 @@ const actualTotalValue = baseTotalValue + coImpact + claimImpact;
 // % paid against ACTUAL value
 const percentPaidOfActual =
   actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+/** --------------------------
+ * CSV Export handlers
+ * -------------------------- */
+
+// Payments by Contract (visible packages only)
+const exportPaymentsCSV = React.useCallback(() => {
+  const headers = [
+    "Package",
+    "Title",
+    "Awarded Value (AED)",
+    "Paid to Date (AED)",
+    "% Paid",
+  ];
+  const rows = visiblePkgs.map(p => {
+    const pct = p.value > 0 ? (p.paid / p.value) * 100 : 0;
+    return [
+      p.id,
+      p.title,
+      p.value,
+      p.paid,
+      Math.round(pct),
+    ];
+  });
+  downloadCSV("payments_by_contract.csv", headers, rows);
+}, [visiblePkgs]);
+
+// Change Orders (current filters applied via cosFiltered)
+const exportCOsCSV = React.useCallback(() => {
+  const headers = [
+    "CO ID",
+    "Package",
+    "Title",
+    "Status",
+    "Estimated (AED)",
+    "Actual (AED)",
+    "Variance (AED)",
+    "Date",
+  ];
+  const rows = cosFiltered.map(c => {
+    const variance = (c.actual == null || c.estimated == null) ? "" : (c.actual - c.estimated);
+    return [
+      c.id,
+      c.pkg,
+      c.title,
+      c.status,
+      c.estimated ?? "",
+      c.actual ?? "",
+      variance,
+      fmtDate(c.date),
+    ];
+  });
+  downloadCSV("change_orders.csv", headers, rows);
+}, [cosFiltered]);
+
+// Claims (current filters applied via claimsFiltered)
+const exportClaimsCSV = React.useCallback(() => {
+  const headers = [
+    "Claim ID",
+    "Package",
+    "Title",
+    "Status",
+    "Claimed (AED)",
+    "Certified (AED)",
+    "Variance (AED)",
+    "Days Open",
+    "Date",
+  ];
+  const now = Date.now();
+  const rows = claimsFiltered.map(c => {
+    const variance = c.certified == null ? "" : (c.certified - c.claimed);
+    const daysOpen = Math.max(0, Math.round((now - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)));
+    return [
+      c.id,
+      c.pkg,
+      c.title,
+      c.status,
+      c.claimed,
+      c.certified ?? "",
+      variance,
+      daysOpen,
+      fmtDate(c.date),
+    ];
+  });
+  downloadCSV("claims.csv", headers, rows);
+}, [claimsFiltered]);
+
+// Optional: quick summary export for headline KPIs
+const exportSummaryCSV = React.useCallback(() => {
+  const headers = ["Metric", "Value (AED)"];
+  const rows = [
+    ["Base Awarded (selected)", baseTotalValue],
+    ["Approved COs Impact", coImpact],
+    ["Approved Claims Impact", claimImpact],
+    ["Actual Total Contract Value", actualTotalValue],
+    ["Paid to Date (all visible packages)", totalPaid],
+  ];
+  downloadCSV("summary.csv", headers, rows);
+}, [baseTotalValue, coImpact, claimImpact, actualTotalValue, totalPaid]);
 
 
   // ✅ Toggle package selection (used by the package pills)
@@ -678,6 +799,32 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
           Integrated Contract Governance &amp; Risk Intelligence System
         </p>
       </header>
+<div className="mt-4 flex gap-2">
+  <button
+    onClick={exportSummaryCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Summary
+  </button>
+  <button
+    onClick={exportPaymentsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Payments
+  </button>
+  <button
+    onClick={exportCOsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export COs
+  </button>
+  <button
+    onClick={exportClaimsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export Claims
+  </button>
+</div>
 
       <main className="mx-auto max-w-7xl px-6 pb-20">
 {/* Filters */}
@@ -805,7 +952,15 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
 </div>
 
         {/* Payments by Contract */}
-        <h2 className="mt-10 text-2xl font-bold">Payments by Contract</h2>
+        <div className="mt-10 flex items-center justify-between">
+  <h2 className="text-2xl font-bold">Payments by Contract</h2>
+  <button
+    onClick={exportPaymentsCSV}
+    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+  >
+    Export CSV
+  </button>
+</div>
         <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {visiblePkgs.map((p) => {
             const pct = (p.paid / p.value) * 100;
@@ -918,29 +1073,33 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
 
 <Card className="mt-4">
   <CardHeader
-    right={
-      <div className="flex gap-2">
-        {CO_STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setCoFilter(s)}
-            className={[
-              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-              coFilter === s
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-900 hover:bg-gray-200",
-            ].join(" ")}
-          >
-            {s}
-          </button>
-        ))}
-
-        <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
-          Export CSV
+  <CardHeader
+  right={
+    <div className="flex gap-2">
+      {CO_STATUSES.map((s) => (
+        <button
+          key={s}
+          onClick={() => setCoFilter(s)}
+          className={[
+            "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+            coFilter === s
+              ? "bg-gray-900 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+          ].join(" ")}
+        >
+          {s}
         </button>
-      </div>
-    }
-  />
+      ))}
+
+      <button
+        onClick={exportCOsCSV}
+        className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+      >
+        Export CSV
+      </button>
+    </div>
+  }
+/>
 
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
@@ -1019,30 +1178,34 @@ const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
 <h2 className="mt-12 text-2xl font-bold">Claims</h2>
 
 <Card className="mt-4">
-  <CardHeader
-    right={
-      <div className="flex gap-2">
-        {CLAIM_STATUSES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setClaimFilter(s)}
-            className={[
-              "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-              claimFilter === s
-                ? "bg-gray-900 text-white"
-                : "bg-gray-100 text-gray-900 hover:bg-gray-200",
-            ].join(" ")}
-          >
-            {s}
-          </button>
-        ))}
-
-        <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold hover:bg-gray-200">
-          Export CSV
+<CardHeader
+  right={
+    <div className="flex gap-2">
+      {CLAIM_STATUSES.map((s) => (
+        <button
+          key={s}
+          onClick={() => setClaimFilter(s)}
+          className={[
+            "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+            claimFilter === s
+              ? "bg-gray-900 text-white"
+              : "bg-gray-100 text-gray-900 hover:bg-gray-200",
+          ].join(" ")}
+        >
+          {s}
         </button>
-      </div>
-    }
-  />
+      ))}
+
+      <button
+        onClick={exportClaimsCSV}
+        className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+      >
+        Export CSV
+      </button>
+    </div>
+  }
+/>
+
 
   <CardBody className="pt-0">
     <div className="overflow-x-auto">
