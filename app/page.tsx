@@ -696,6 +696,36 @@ const actualTotalValue = baseTotalValue + coImpact + claimImpact;
 // % paid against ACTUAL value
 const percentPaidOfActual =
   actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+// ---- Status counts that follow the same filters as the tables ----
+function countByStatus<T extends { status?: string }>(
+  items: T[],
+  order: readonly string[]
+): Record<string, number> {
+  const init: Record<string, number> = Object.fromEntries(order.map(k => [k, 0]));
+  for (const it of items) {
+    const key = (it.status || "").trim();
+    if (key in init) init[key] += 1;
+  }
+  return init;
+}
+
+const CO_STATUS_ORDER = ["Approved", "In Review", "Proposed", "Rejected"] as const;
+const CLAIM_STATUS_ORDER = ["Approved", "In Review", "Submitted", "Rejected"] as const;
+
+const coCounts = React.useMemo(
+  () => countByStatus(cosFiltered, CO_STATUS_ORDER),
+  [cosFiltered]
+);
+
+const claimCounts = React.useMemo(
+  () => countByStatus(claimsFiltered, CLAIM_STATUS_ORDER),
+  [claimsFiltered]
+);
+
+// Convenience: “open” = Submitted + In Review for Claims
+const claimsOpen =
+  (claimCounts["Submitted"] ?? 0) + (claimCounts["In Review"] ?? 0);
+
 /** --------------------------
  * CSV Export handlers
  * -------------------------- */
@@ -1081,33 +1111,35 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
     </CardBody>
   </Card>
 
-  {/* 3) COs */}
-  <Card>
-    <CardHeader title="Change Orders (COs)" />
-    <CardBody>
-      <div className="text-2xl font-bold">{cosFiltered.length}</div>
-      <div className="mt-1 text-sm text-gray-500">
-        {cosFiltered.filter((c) => c.status === "Approved").length} approved
-      </div>
-    </CardBody>
-  </Card>
+{/* 3) COs */}
+<Card>
+  <CardHeader title="Change Orders (COs)" />
+  <CardBody>
+    <div className="text-2xl font-bold">{cosFiltered.length}</div>
+    <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+      <div>Approved</div><div className="text-right font-semibold text-gray-900">{coCounts["Approved"] ?? 0}</div>
+      <div>In Review</div><div className="text-right font-semibold text-gray-900">{coCounts["In Review"] ?? 0}</div>
+      <div>Proposed</div><div className="text-right font-semibold text-gray-900">{coCounts["Proposed"] ?? 0}</div>
+      <div>Rejected</div><div className="text-right font-semibold text-gray-900">{coCounts["Rejected"] ?? 0}</div>
+    </div>
+  </CardBody>
+</Card>
 
-  {/* 4) Claims */}
-  <Card>
-    <CardHeader title="Claims" />
-    <CardBody>
-      <div className="text-2xl font-bold">{claimsFiltered.length}</div>
-      <div className="mt-1 text-sm text-gray-500">
-        {
-          claimsFiltered.filter(
-            (c) => c.status === "In Review" || c.status === "Submitted"
-          ).length
-        }{" "}
-        open •{" "}
-        {claimsFiltered.filter((c) => c.status === "Approved").length} approved
-      </div>
-    </CardBody>
-  </Card>
+{/* 4) Claims */}
+<Card>
+  <CardHeader title="Claims" />
+  <CardBody>
+    <div className="text-2xl font-bold">{claimsFiltered.length}</div>
+    <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+      <div>Approved</div><div className="text-right font-semibold text-gray-900">{claimCounts["Approved"] ?? 0}</div>
+      <div>In Review</div><div className="text-right font-semibold text-gray-900">{claimCounts["In Review"] ?? 0}</div>
+      <div>Submitted</div><div className="text-right font-semibold text-gray-900">{claimCounts["Submitted"] ?? 0}</div>
+      <div>Rejected</div><div className="text-right font-semibold text-gray-900">{claimCounts["Rejected"] ?? 0}</div>
+      <div className="pt-1 border-t mt-1">Open (In Review + Submitted)</div>
+      <div className="pt-1 border-t mt-1 text-right font-semibold text-gray-900">{claimsOpen}</div>
+    </div>
+  </CardBody>
+</Card>
 </div>
 
         {/* Payments by Contract */}
