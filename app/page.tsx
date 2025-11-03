@@ -807,40 +807,42 @@ const PKG_STYLES: Record<PaymentPkg["id"], {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="mx-auto max-w-7xl px-6 pt-8">
-        <h1 className="text-2xl font-bold tracking-tight">
-  IPCCMIS Dashboard
-</h1>
-<p className="text-sm text-gray-600">
-  Integrated Project Control & Contract Management Intelligence System
-</p>
-      </header>
-<div className="mt-4 flex gap-2">
-  <button
-    onClick={exportSummaryCSV}
-    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-  >
-    Export Summary
-  </button>
-  <button
-    onClick={exportPaymentsCSV}
-    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-  >
-    Export Payments
-  </button>
-  <button
-    onClick={exportCOsCSV}
-    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-  >
-    Export COs
-  </button>
-  <button
-    onClick={exportClaimsCSV}
-    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-  >
-    Export Claims
-  </button>
-</div>
+<header className="mx-auto max-w-7xl px-6 pt-8 text-center">
+  <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+    IPCCMIS Dashboard
+  </h1>
+  <p className="mt-1 text-gray-600">
+    Integrated Project Control &amp; Contract Management Intelligence System
+  </p>
+
+  {/* Centered export actions */}
+  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+    <button
+      onClick={exportSummaryCSV}
+      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+    >
+      Export Summary
+    </button>
+    <button
+      onClick={exportPaymentsCSV}
+      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+    >
+      Export Payments
+    </button>
+    <button
+      onClick={exportCOsCSV}
+      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+    >
+      Export COs
+    </button>
+    <button
+      onClick={exportClaimsCSV}
+      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+    >
+      Export Claims
+    </button>
+  </div>
+</header>
 
       <main className="mx-auto max-w-7xl px-6 pb-20">
 {/* Filters */}
