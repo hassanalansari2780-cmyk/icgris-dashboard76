@@ -1,1491 +1,1518 @@
+
+/* eslint-disable @next/next/no-img-element */
 "use client";
+import React from "react";
 
-import * as React from "react";
-import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Search, Paperclip } from "lucide-react";
+type Pill = { key: string; label: string };
 
-// ==========================================
-// Types
-// ==========================================
-export type StageKey =
-  | "PRC"
-  | "CC_OUTCOME"
-  | "CEO_OR_BOARD_MEMO"
-  | "EI"
-  | "CO_V_VOS"
-  | "AA_SA";
-
-export type PackageId =
-  | "A"
-  | "B"
-  | "C"
-  | "D"
-  | "E"
-  | "F"
-  | "G"
-  | "I2"
-  | "PMEC";
-
-export type PcrTarget = "EI" | "CO" | "EI+CO" | "VOS" | "TBC" | "AA";
-
-export interface Reviewer {
-  role: string;
-  name: string;
-  date?: string;
-  decision?: string;
+function PillBar({
+pills,
+active,
+onChange,
+}: {
+pills: Pill[];
+active: string;
+onChange: (key: string) => void;
+}) {
+return (
+<div className="flex gap-4 flex-wrap">
+{pills.map((p) => {
+const isActive = p.key === active;
+return (
+<button
+key={p.key}
+onClick={() => onChange(p.key)}
+className={[
+"px-6 py-3 rounded-full text-base font-semibold transition-colors",
+isActive
+? "bg-gray-900 text-white"
+: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+].join(" ")}
+>
+{p.label}
+</button>
+);
+})}
+</div>
+);
 }
 
-export interface Signer {
-  role: string;
-  name: string;
-  date?: string;
-  signed?: boolean;
-}
+/** --------------------------
+* Utilities
+* -------------------------- */
+const fmtCurr = (n?: number | null) =>
+n == null ? "—" : `AED ${n.toLocaleString("en-US")}`;
 
-export interface LinkItem {
-  label: string;
-  href: string;
-}
+const fmtPct = (n: number) => `${Math.round(n)}%`;
 
-export interface ChangeRecord {
-  id: string; // CO / PRC ID
-  type: "PRC" | "EI" | "CO" | "Determination";
-  package: PackageId;
-  title: string;
-  estimated?: number; // AED
-  actual?: number; // AED
-  stageKey: StageKey; // must match STAGES keys exactly
-  subStatus?: string;
-  stageStartDate: string; // ISO date
-  overallStartDate: string; // ISO
-  outcome?: "Approved" | "Rejected" | "Withdrawn" | "Superseded";
-  target?: PcrTarget;
-  sponsor?: string;
-  reviewList?: Reviewer[];
-  signatureList?: Signer[];
-  links?: LinkItem[];
-  prcTarget?: PcrTarget;
-  ccPlannedForNext?: boolean;
-  ccPreviousMeeting?: number;
-}
-
-// ==========================================
-// Lifecycle & options
-// ==========================================
-const STAGES: {
-  order: number;
-  key: StageKey;
-  name: string;
-  short: string;
-  slaDays: number;
-  color: string;
-}[] = [
-  {
-    order: 1,
-    key: "PRC",
-    name: "PRC",
-    short: "PRC",
-    slaDays: 5,
-    color: "bg-sky-100 text-sky-900",
-  },
-  {
-    order: 2,
-    key: "CC_OUTCOME",
-    name: "CC Outcome",
-    short: "CC",
-    slaDays: 3,
-    color: "bg-indigo-100 text-indigo-900",
-  },
-  {
-    order: 3,
-    key: "CEO_OR_BOARD_MEMO",
-    name: "CEO / Board Memo",
-    short: "CEO/Board",
-    slaDays: 2,
-    color: "bg-purple-100 text-purple-900",
-  },
-  {
-    order: 4,
-    key: "EI",
-    name: "EI",
-    short: "EI",
-    slaDays: 2,
-    color: "bg-amber-100 text-amber-900",
-  },
-  {
-    order: 5,
-    key: "CO_V_VOS",
-    name: "CO/V/VOS",
-    short: "CO/V/VOS",
-    slaDays: 7,
-    color: "bg-emerald-100 text-emerald-900",
-  },
-  {
-    order: 6,
-    key: "AA_SA",
-    name: "AA/SA",
-    short: "AA/SA",
-    slaDays: 0,
-    color: "bg-gray-200 text-gray-900",
-  },
-];
-
-const fmt = new Intl.NumberFormat("en-AE", {
-  style: "currency",
-  currency: "AED",
-  maximumFractionDigits: 0,
+const fmtDate = (iso: string) => {
+const d = new Date(iso);
+return d.toLocaleDateString("en-GB", {
+year: "numeric",
+month: "short",
+day: "2-digit",
 });
-const fmtShort = new Intl.NumberFormat("en-US");
-
-const NEXT_CC_MEETING_NO = 12;
-
-// ==========================================
-// Utils
-// ==========================================
-function daysBetween(startIso?: string, endIso?: string) {
-  if (!startIso) return 0;
-  const start = new Date(startIso);
-  const end = endIso ? new Date(endIso) : new Date();
-  const diff = Math.round(
-    (end.getTime() - start.getTime()) / (24 * 3600 * 1000),
-  );
-  return Math.max(diff, 0);
+};
+/** --------------------------
+* CSV Export helpers
+* -------------------------- */
+function csvEscape(val: unknown): string {
+if (val == null) return "";
+const s = String(val);
+// wrap in quotes if contains comma, quote, or newline; escape quotes
+if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+return s;
 }
 
-function clsx(...xs: (string | false | null | undefined)[]) {
-  return xs.filter(Boolean).join(" ");
+function downloadCSV(
+filename: string,
+a: Record<string, any>[] | string[],
+b?: (string | number | null | undefined)[][]
+) {
+// Decide mode: (headers + array rows) OR (array of objects)
+const hasExplicitHeaders = Array.isArray(a) && (a.length === 0 || typeof a[0] === "string");
+
+let headers: string[] = [];
+let rowsArray: (string | number | null | undefined)[][] = [];
+
+if (hasExplicitHeaders) {
+// Signature: downloadCSV(filename, headers[], rows[][])
+headers = (a as string[]) ?? [];
+rowsArray = (b as (string | number | null | undefined)[][]) ?? [];
+} else {
+// Signature: downloadCSV(filename, rowsObj[])
+const rowsObj = (a as Record<string, any>[]) ?? [];
+if (!rowsObj.length) return;
+headers = Object.keys(rowsObj[0]);
+rowsArray = rowsObj.map((r) => headers.map((h) => r[h]));
 }
 
-function stageInfo(key: StageKey) {
-  const s = STAGES.find((x) => x.key === key);
-  if (!s) {
-    console.error(`Stage not found for key: ${key}`);
-    return {
-      order: 0,
-      key,
-      name: String(key),
-      short: String(key),
-      slaDays: 0,
-      color: "bg-gray-200 text-gray-900",
-    };
-  }
-  return s;
+const head = headers.map(csvEscape).join(",");
+const body = rowsArray.map((r) => r.map(csvEscape).join(",")).join("\n");
+const csv = head + "\n" + body;
+
+const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+const url = URL.createObjectURL(blob);
+const aTag = document.createElement("a");
+aTag.href = url;
+aTag.download = filename;
+document.body.appendChild(aTag);
+aTag.click();
+aTag.remove();
+URL.revokeObjectURL(url);
 }
 
-function variance(estimated?: number, actual?: number) {
-  if (typeof estimated !== "number" || typeof actual !== "number") return null;
-  return actual - estimated;
-}
+type Status =
+| "Proposed"
+| "In Review"
+| "Approved"
+| "Rejected"
+| "Submitted"
+| "Certified";
 
-function issuedItemLabel(r: ChangeRecord) {
-  if (r.stageKey === "EI" || r.type === "EI") return "EI";
-  if (r.stageKey === "CO_V_VOS") return "CO / V / VOS";
-  if (r.stageKey === "AA_SA") return "AA / SA";
-  return r.type;
-}
+/** --------------------------
+* Small UI Primitives
+* -------------------------- */
+const Card = ({
+children,
+className = "",
+}: React.PropsWithChildren<{ className?: string }>) => (
+<div className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}>
+{children}
+</div>
+);
 
-// ==========================================
-// Demo data (clean, compact)
-// ==========================================
-const DEMO: ChangeRecord[] = [
-  // ===== PCRs → EI =====
-  {
-    id: "PCR-A-030",
-    type: "PRC",
-    package: "A",
-    title: "Ventilation Fan Adjustment in Tunnel A-02 (PCR)",
-    estimated: 520000,
-    stageKey: "PRC",
-    subStatus: "In Preparation",
-    stageStartDate: "2026-02-11",
-    overallStartDate: "2026-02-11",
-    target: "EI",
-    sponsor: "Pkg A PM – Eng. Nasser Al-Rawahi",
-  },
-  {
-    id: "PCR-C-033",
-    type: "PRC",
-    package: "C",
-    title: "Emergency Lighting Cable Protection (PCR)",
-    estimated: 980000,
-    stageKey: "CC_OUTCOME",
-    subStatus: "Approved",
-    stageStartDate: "2026-02-09",
-    overallStartDate: "2026-01-28",
-    target: "EI",
-    sponsor: "Pkg C PM – Eng. Khalid Al-Harthy",
-  },
-  {
-    id: "PCR-D-029",
-    type: "PRC",
-    package: "D",
-    title: "Platform Emergency Call Box Relocation (PCR)",
-    estimated: 240000,
-    actual: 235000,
-    stageKey: "CEO_OR_BOARD_MEMO",
-    subStatus: "In Approval",
-    stageStartDate: "2026-02-12",
-    overallStartDate: "2026-01-30",
-    target: "EI",
-    sponsor: "Pkg D PM – Eng. Younis Al-Maamari",
-  },
-  {
-    id: "PCR-E-015",
-    type: "PRC",
-    package: "E",
-    title: "Workshop Vertical Clearance Improvement (PCR)",
-    estimated: 300000,
-    stageKey: "EI",
-    subStatus: "Ready",
-    stageStartDate: "2026-02-10",
-    overallStartDate: "2026-01-29",
-    target: "EI",
-    sponsor: "Assets Manager – Eng. Hamad Al-Hinai",
-  },
-  {
-    id: "PCR-F-009",
-    type: "PRC",
-    package: "F",
-    title: "Signalling Panel Earthing Correction (PCR)",
-    estimated: 150000,
-    actual: 155000,
-    stageKey: "EI",
-    subStatus: "To be Issued to Contractor",
-    stageStartDate: "2026-02-14",
-    overallStartDate: "2026-02-01",
-    target: "EI",
-    sponsor: "Signalling Manager – Eng. Talal Al-Balushi",
-  },
-  // flagged for next CC (EI)
-  {
-    id: "PCR-C-021",
-    type: "PRC",
-    package: "C",
-    title: "Drainage Rerouting at Station C-05 (PCR)",
-    estimated: 1200000,
-    stageKey: "PRC",
-    subStatus: "Ready for CC",
-    stageStartDate: "2026-01-18",
-    overallStartDate: "2026-01-10",
-    target: "EI",
-    sponsor: "Pkg C PM – Eng. Khalid Al-Harthy",
-    ccPlannedForNext: true,
-  },
+const CardHeader = ({
+title,
+right,
+}: {
+title?: string;
+right?: React.ReactNode;
+}) => (
+<div className="flex items-center justify-between px-5 py-4">
+{title ? <h3 className="font-semibold text-gray-900">{title}</h3> : <div />}
+{right}
+</div>
+);
 
-  // ===== PCRs → CO / VOS / AA =====
-  {
-    id: "PCR-B-020",
-    type: "PRC",
-    package: "B",
-    title: "Drainage Channel Reinforcement (PCR)",
-    estimated: 780000,
-    stageKey: "CO_V_VOS",
-    subStatus: "To be Prepared",
-    stageStartDate: "2026-02-13",
-    overallStartDate: "2026-02-13",
-    target: "CO",
-    sponsor: "Pkg B PM – Eng. Rashid Al-Siyabi",
-  },
-  {
-    id: "PCR-G-017",
-    type: "PRC",
-    package: "G",
-    title: "Trackside Fencing Optimization (PCR)",
-    estimated: 1100000,
-    actual: 1050000,
-    stageKey: "CO_V_VOS",
-    subStatus: "Under Review",
-    stageStartDate: "2026-02-10",
-    overallStartDate: "2026-02-01",
-    target: "VOS",
-    sponsor: "Track Engineering Manager",
-  },
-  {
-    id: "PCR-D-031",
-    type: "PRC",
-    package: "D",
-    title: "Passenger Flow Adjustment at Station D-07 (PCR)",
-    estimated: 450000,
-    stageKey: "CO_V_VOS",
-    subStatus: "In Circulation",
-    stageStartDate: "2026-02-09",
-    overallStartDate: "2026-01-30",
-    target: "CO",
-    sponsor: "Pkg D PM – Eng. Younis Al-Maamari",
-  },
-  {
-    id: "PCR-E-024",
-    type: "PRC",
-    package: "E",
-    title: "Maintenance Yard Gate Relocation (PCR)",
-    estimated: 600000,
-    actual: 590000,
-    stageKey: "AA_SA",
-    subStatus: "In Approval",
-    stageStartDate: "2026-02-11",
-    overallStartDate: "2026-02-02",
-    target: "AA",
-    sponsor: "Assets Manager – Eng. Hamad Al-Hinai",
-  },
-  {
-    id: "PCR-F-012",
-    type: "PRC",
-    package: "F",
-    title: "Signalling Room Cooling Improvement (PCR)",
-    estimated: 900000,
-    actual: 920000,
-    stageKey: "CO_V_VOS",
-    subStatus: "To be Issued to Contractor",
-    stageStartDate: "2026-02-14",
-    overallStartDate: "2026-02-05",
-    target: "CO",
-    sponsor: "Signalling Manager – Eng. Talal Al-Balushi",
-  },
-  {
-    id: "PCR-A-018",
-    type: "PRC",
-    package: "A",
-    title: "Handrail Height Adjustment (PCR)",
-    estimated: 650000,
-    actual: 700000,
-    stageKey: "PRC",
-    subStatus: "In Preparation",
-    stageStartDate: "2026-01-12",
-    overallStartDate: "2026-01-12",
-    target: "CO",
-    sponsor: "HSSE Manager – Eng. Salim Al-Harthy",
-    ccPlannedForNext: true,
-    ccPreviousMeeting: 11,
-  },
+const CardBody = ({
+children,
+className = "",
+}: React.PropsWithChildren<{ className?: string }>) => (
+<div className={`px-5 pb-5 ${className}`}>{children}</div>
+);
 
-  // ===== Completed EIs / COs =====
-  {
-    id: "EI-A-011",
-    type: "EI",
-    package: "A",
-    title: "Tunnel Lighting Rectification (EI)",
-    estimated: 0,
-    stageKey: "EI",
-    subStatus: "Issued",
-    stageStartDate: "2025-11-20",
-    overallStartDate: "2025-11-10",
-    sponsor: "Pkg A PM – Eng. Nasser Al-Rawahi",
-  },
-  {
-    id: "CO-C-045",
-    type: "CO",
-    package: "C",
-    title: "Station C-09 Canopy Strengthening (Final)",
-    estimated: 1300000,
-    actual: 1275000,
-    outcome: "Approved",
-    stageKey: "CO_V_VOS",
-    subStatus: "Done",
-    stageStartDate: "2025-12-18",
-    overallStartDate: "2025-12-01",
-    sponsor: "Pkg C PM – Eng. Khalid Al-Harthy",
-  },
-  {
-    id: "CO-D-014",
-    type: "CO",
-    package: "D",
-    title: "Platform Canopy Extension (Final)",
-    estimated: 500000,
-    actual: 520000,
-    outcome: "Approved",
-    stageKey: "CO_V_VOS",
-    subStatus: "Done",
-    stageStartDate: "2025-06-10",
-    overallStartDate: "2025-05-20",
-    sponsor: "Pkg D PM – Eng. Younis Al-Maamari",
-  },
-  {
-    id: "CO-E-003",
-    type: "CO",
-    package: "E",
-    title: "Workshop Drainage Improvement (Final)",
-    estimated: 300000,
-    actual: 295000,
-    outcome: "Approved",
-    stageKey: "CO_V_VOS",
-    subStatus: "Done",
-    stageStartDate: "2025-10-01",
-    overallStartDate: "2025-09-05",
-    sponsor: "Assets Manager – Eng. Hamad Al-Hinai",
-  },
+const Pill = ({
+children,
+active,
+onClick,
+}: React.PropsWithChildren<{ active?: boolean; onClick?: () => void }>) => (
+<button
+onClick={onClick}
+className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+}`}
+>
+{children}
+</button>
+);
+
+const StatusPill = ({ status }: { status: Status }) => {
+const map: Record<Status, string> = {
+Proposed: "bg-amber-100 text-amber-800",
+"In Review": "bg-blue-100 text-blue-800",
+Approved: "bg-emerald-100 text-emerald-800",
+Rejected: "bg-rose-100 text-rose-800",
+Submitted: "bg-gray-100 text-gray-700",
+Certified: "bg-zinc-100 text-zinc-700",
+};
+return (
+<span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${map[status]}`}>
+{status}
+</span>
+);
+};
+
+const Progress = ({ value }: { value: number }) => (
+<div className="h-2 w-full rounded-full bg-gray-200">
+<div
+className="h-2 rounded-full bg-gray-900"
+style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+/>
+</div>
+);
+
+/** --------------------------
+* Demo Data
+* -------------------------- */
+type IPC = {
+id: string;
+date: string; // ISO
+claimed?: number | null; // Claimed (requested)
+certified?: number | null; // Certified (approved)
+status: Status;
+};
+
+type AdvancePayment = {
+amount: number;
+recovered: number;
+balance: number;
+status: "Not Started" | "Ongoing" | "Fully Recovered";
+guaranteeNo?: string;
+startIPC?: string;
+};
+
+type PaymentPkg = {
+id: "A" | "B" | "C" | "D" | "F" | "G" | "I2" | "PMEC";
+title: string;
+value: number;
+paid: number;
+color: string;
+ipcs: IPC[];
+ap: AdvancePayment; // NEW
+};
+
+const payments: PaymentPkg[] = [
+{
+id: "A",
+title: "Package A - Systems",
+value: 120_000_000,
+paid: 48_000_000,
+color: "ring-blue-500",
+ipcs: [
+{ id: "IPC 05", date: "2025-09-20", claimed: 360000, certified: 325000, status: "Certified" },
+{ id: "IPC 06", date: "2025-10-21", claimed: 525000, certified: 510207, status: "Certified" },
+],
+ap: {
+amount: 2_000_000,
+recovered: 835_207,
+balance: 1_164_793,
+status: "Ongoing",
+guaranteeNo: "HSBC-APG-0001",
+startIPC: "IPC 05",
+},
+},
+{
+id: "B",
+title: "Package B - Track",
+value: 95_000_000,
+paid: 41_000_000,
+color: "ring-emerald-600",
+ipcs: [
+{ id: "IPC 03", date: "2025-08-11", claimed: 410000, certified: 390000, status: "Certified" },
+{ id: "IPC 04", date: "2025-09-27", claimed: 275000, certified: 260000, status: "Certified" },
+],
+ap: {
+amount: 1_500_000,
+recovered: 650_000,
+balance: 850_000,
+status: "Ongoing",
+guaranteeNo: "HSBC-APG-0002",
+startIPC: "IPC 03",
+},
+},
+{
+id: "C",
+title: "Package C - Civil",
+value: 180_000_000,
+paid: 72_000_000,
+color: "ring-orange-600",
+ipcs: [{ id: "IPC 07", date: "2025-08-30", claimed: 900000, certified: 870000, status: "Certified" }],
+ap: { amount: 2_700_000, recovered: 2_700_000, balance: 0, status: "Fully Recovered", guaranteeNo: "HSBC-APG-0003", startIPC: "IPC 06" },
+},
+{
+id: "D",
+title: "Package D - Stations",
+value: 85_000_000,
+paid: 19_000_000,
+color: "ring-red-600",
+ipcs: [{ id: "IPC 05", date: "2025-07-12", claimed: 220000, certified: 200000, status: "Certified" }],
+ap: { amount: 1_000_000, recovered: 240_000, balance: 760_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0004", startIPC: "IPC 04" },
+},
+{
+id: "F",
+title: "Package F - Rolling Stock",
+value: 210_000_000,
+paid: 109_000_000,
+color: "ring-violet-600",
+ipcs: [{ id: "IPC 10", date: "2025-09-05", claimed: 1_200_000, certified: 1_150_000, status: "Certified" }],
+ap: { amount: 3_500_000, recovered: 1_500_000, balance: 2_000_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0005", startIPC: "IPC 08" },
+},
+{
+id: "G",
+title: "Package G - O&M",
+value: 60_000_000,
+paid: 9_500_000,
+color: "ring-teal-600",
+ipcs: [{ id: "IPC 02", date: "2025-10-10", claimed: 300000, certified: 290000, status: "Certified" }],
+ap: { amount: 800_000, recovered: 80_000, balance: 720_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0006", startIPC: "IPC 02" },
+},
+{
+id: "I2",
+title: "Package I2 - Integration",
+value: 35_000_000,
+paid: 11_000_000,
+color: "ring-orange-600",
+ipcs: [{ id: "IPC 04", date: "2025-09-18", claimed: 450000, certified: 430000, status: "Certified" }],
+ap: { amount: 500_000, recovered: 0, balance: 500_000, status: "Not Started", guaranteeNo: "HSBC-APG-0007" },
+},
+{
+id: "PMEC",
+title: "PMEC - Consulting",
+value: 18_000_000,
+paid: 7_000_000,
+color: "ring-violet-600",
+ipcs: [{ id: "IPC 06", date: "2025-10-08", claimed: 200000, certified: 190000, status: "Certified" }],
+ap: { amount: 250_000, recovered: 190_000, balance: 60_000, status: "Ongoing", guaranteeNo: "HSBC-APG-0008", startIPC: "IPC 05" },
+},
 ];
 
-// ==========================================
-// CSV helpers
-// ==========================================
-function buildCSV(rows: ChangeRecord[]): string {
-  const headers = [
-    "ID",
-    "Type",
-    "Package",
-    "Title",
-    "Estimated",
-    "Actual",
-    "Variance",
-    "Stage",
-    "SubStatus",
-    "PRCTarget",
-    "Sponsor",
-    "DaysInStage",
-    "OverallDays",
-  ];
+type CO = {
+id: string;
+pkg: PaymentPkg["id"];
+title: string;
+status: Status;
+estimated?: number | null;
+actual?: number | null;
+date: string; // ISO
+};
+const cos: CO[] = [
+{ id: "CO-A-001", pkg: "A", title: "Scope Interface Adjustment", status: "In Review", estimated: 3_200_000, actual: null, date: "2025-09-05" },
+{ id: "CO-A-002", pkg: "A", title: "Cybersecurity Upgrade", status: "Proposed", estimated: 1_150_000, actual: null, date: "2025-10-10" },
+{ id: "CO-B-001", pkg: "B", title: "Ballast Spec Update", status: "Approved", estimated: 2_000_000, actual: 1_850_000, date: "2025-07-22" },
+{ id: "CO-C-004", pkg: "C", title: "Retaining Wall Change", status: "Approved", estimated: 4_900_000, actual: 5_200_000, date: "2025-03-30" },
+{ id: "CO-D-003", pkg: "D", title: "Station Canopy Redesign", status: "In Review", estimated: 2_700_000, actual: null, date: "2025-09-18" },
+{ id: "CO-F-002", pkg: "F", title: "Brake System Mod", status: "Proposed", estimated: 6_000_000, actual: null, date: "2025-10-08" },
+{ id: "CO-G-005", pkg: "G", title: "Maintenance Tooling", status: "Approved", estimated: 800_000, actual: 780_000, date: "2025-05-11" },
+{ id: "CO-I2-002", pkg: "I2", title: "Interface Test Extension", status: "Proposed", estimated: 450_000, actual: null, date: "2025-09-29" },
+{ id: "CO-PMEC-001", pkg: "PMEC", title: "Additional Studies", status: "Approved", estimated: 300_000, actual: 290_000, date: "2025-02-14" },
+];
 
-  const body = rows.map((r) => {
-    const st = stageInfo(r.stageKey);
-    const vr = variance(r.estimated, r.actual);
-    const safeTitle = '"' + r.title.replaceAll('"', '""') + '"';
-
-    return [
-      r.id,
-      r.type,
-      r.package,
-      safeTitle,
-      r.estimated ?? "",
-      r.actual ?? "",
-      vr ?? "",
-      st.name,
-      r.subStatus ?? "",
-      r.prcTarget ?? "",
-      r.sponsor ?? "",
-      daysBetween(r.stageStartDate),
-      daysBetween(r.overallStartDate),
-    ].join(",");
-  });
-
-  return [headers.join(","), ...body].join("\n");
-}
-
-function exportCSV(rows: ChangeRecord[]) {
-  const csv = buildCSV(rows);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `change-orders-${new Date()
-    .toISOString()
-    .slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ==========================================
-// Summary card
-// ==========================================
-function computeSummary(rows: ChangeRecord[]) {
-  const total = rows.length;
-
-  const pcrs = rows.filter((r) => r.type === "PRC");
-  const pcrToEI = pcrs.filter((r) => r.target === "EI").length;
-  const pcrToCO = pcrs.filter(
-    (r) => r.target === "CO" || r.target === "VOS" || r.target === "AA",
-  ).length;
-
-  const completed = rows.filter((r) => {
-    const isEICompleted =
-      r.stageKey === "EI" &&
-      (r.subStatus === "Issued" ||
-        r.subStatus === "To be Issued to Contractor");
-    const isCOOrAACompleted =
-      (r.stageKey === "CO_V_VOS" && r.subStatus === "Done") ||
-      (r.stageKey === "AA_SA" && r.subStatus === "Done");
-    return isEICompleted || isCOOrAACompleted;
-  }).length;
-
-  return { total, pcrToEI, pcrToCO, completed };
-}
-
-function SummaryCard({ rows }: { rows: ChangeRecord[] }) {
-  const s = useMemo(() => computeSummary(rows), [rows]);
-
-  return (
-    <Card className="rounded-2xl shadow-sm h-[180px]">
-      <CardContent className="p-4 h-full flex flex-col justify-between">
-        <div>
-          <div className="text-sm text-muted-foreground">Change Items</div>
-          <div className="text-4xl font-semibold mt-1">
-            {fmtShort.format(s.total)}
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span>PCR → EI</span>
-            <span>{s.pcrToEI}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>PCR → CO</span>
-            <span>{s.pcrToCO}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Completed (EI / CO/V/VOS / AA/SA)</span>
-            <span>{s.completed}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ==========================================
-// Next CC Meeting – summary & modal
-// ==========================================
-type NextCcSummary = {
-  nextCcNo: number;
-  total: number;
-  eiCount: number;
-  coCount: number;
-  firstTimeCount: number;
-  carryOverCount: number;
-  rows: ChangeRecord[];
+type Claim = {
+id: string;
+pkg: PaymentPkg["id"];
+title: string;
+status: Status | "Submitted";
+claimed: number;
+certified?: number | null;
+date: string;
 };
 
-function computeNextCcSummary(rows: ChangeRecord[]): NextCcSummary {
-  const ccRows = rows.filter((r) => r.type === "PRC" && r.ccPlannedForNext);
+const claims: Claim[] = [
+{ id: "CLM-A-001", pkg: "A", title: "Interface Delay (Vendor A)", status: "In Review", claimed: 1_200_000, certified: null, date: "2025-10-02" },
+{ id: "CLM-B-002", pkg: "B", title: "Ballast Rework", status: "Submitted", claimed: 850_000, certified: null, date: "2025-10-15" },
+{ id: "CLM-C-003", pkg: "C", title: "Unforeseen Utilities", status: "Approved", claimed: 2_100_000, certified: 1_950_000, date: "2025-08-21" },
+{ id: "CLM-D-001", pkg: "D", title: "Design Change Impacts", status: "Rejected", claimed: 900_000, certified: 0, date: "2025-07-03" },
+{ id: "CLM-F-004", pkg: "F", title: "Supplier Late Deliveries", status: "In Review", claimed: 1_750_000, certified: null, date: "2025-10-10" },
+{ id: "CLM-G-002", pkg: "G", title: "O&M Mobilization Overlaps", status: "Submitted", claimed: 300_000, certified: null, date: "2025-10-17" },
+{ id: "CLM-I2-001", pkg: "I2", title: "Integration Test Overruns", status: "Approved", claimed: 600_000, certified: 540_000, date: "2025-09-05" },
+{ id: "CLM-PMEC-1", pkg: "PMEC", title: "Additional Study Hours", status: "Approved", claimed: 200_000, certified: 190_000, date: "2025-10-08" },
+];
 
-  const eiCount = ccRows.filter((r) => r.target === "EI").length;
-  const coCount = ccRows.filter(
-    (r) => r.target === "CO" || r.target === "VOS",
-  ).length;
-
-  const carryOverRows = ccRows.filter(
-    (r) => typeof r.ccPreviousMeeting === "number",
-  );
-  const firstTimeRows = ccRows.filter(
-    (r) => typeof r.ccPreviousMeeting !== "number",
-  );
-
-  return {
-    nextCcNo: NEXT_CC_MEETING_NO,
-    total: ccRows.length,
-    eiCount,
-    coCount,
-    firstTimeCount: firstTimeRows.length,
-    carryOverCount: carryOverRows.length,
-    rows: ccRows,
-  };
-}
-
-function NextCcCard({
-  rows,
-  onOpenDetails,
+/** --------------------------
+* IPCs + Advance Payment Modal
+* -------------------------- */
+function IPCsModal({
+open,
+onClose,
+pkg,
 }: {
-  rows: ChangeRecord[];
-  onOpenDetails: () => void;
+open: boolean;
+onClose: () => void;
+pkg: PaymentPkg | null;
 }) {
-  const summary = useMemo(() => computeNextCcSummary(rows), [rows]);
+const [tab, setTab] = React.useState<"ipcs" | "ap">("ipcs");
+React.useEffect(() => {
+if (open) setTab("ipcs");
+}, [open]);
 
-  return (
-    <Card className="rounded-2xl shadow-sm h-full">
-      <CardContent className="p-4 h-full flex flex-col justify-between">
-        <div>
-          <div className="text-sm text-muted-foreground">Next CC Meeting</div>
-          <div className="text-xl font-semibold mt-1">
-            {summary.nextCcNo
-              ? `CC-${summary.nextCcNo.toString().padStart(2, "0")}`
-              : "—"}
-          </div>
+if (!open || !pkg) return null;
 
-          <div className="mt-3 space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span>Total PCRs on agenda</span>
-              <span>{summary.total || 0}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>PCRs targeting EI</span>
-              <span>{summary.eiCount || 0}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>PCRs targeting CO / V / VOS</span>
-              <span>{summary.coCount || 0}</span>
-            </div>
-          </div>
-        </div>
+// AP status visual color
+const apColor =
+pkg.ap.status === "Fully Recovered"
+? "text-emerald-700"
+: pkg.ap.status === "Ongoing"
+? "text-amber-700"
+: "text-gray-700";
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="rounded-2xl px-3 py-1 text-xs self-start mt-4"
-          onClick={onOpenDetails}
-          disabled={summary.total === 0}
-        >
-          Details
-        </Button>
-      </CardContent>
-    </Card>
-  );
+return (
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+<div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
+<div className="flex items-center justify-between border-b px-6 py-4">
+<h3 className="text-lg font-semibold">{pkg.title}</h3>
+<button
+onClick={onClose}
+className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+>
+Close
+</button>
+</div>
+
+{/* Tabs */}
+<div className="flex gap-2 border-b px-6 pt-3">
+<button
+onClick={() => setTab("ipcs")}
+className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${
+tab === "ipcs" ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-500"
+}`}
+>
+IPCs
+</button>
+<button
+onClick={() => setTab("ap")}
+className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${
+tab === "ap" ? "border-b-2 border-gray-900 text-gray-900" : "text-gray-500"
+}`}
+>
+Advance Payment
+</button>
+</div>
+
+{/* Content */}
+<div className="px-6 py-4">
+{tab === "ipcs" ? (
+<div className="overflow-x-auto">
+<table className="w-full text-left">
+<thead>
+<tr className="text-sm text-gray-600">
+<th className="py-3">IPC No.</th>
+<th className="py-3">Date</th>
+<th className="py-3">Claimed</th>
+<th className="py-3">Certified</th>
+<th className="py-3">Status</th>
+</tr>
+</thead>
+<tbody>
+{pkg.ipcs.map((r) => (
+<tr key={r.id} className="border-t text-sm">
+<td className="py-3 font-medium">{r.id}</td>
+<td className="py-3">{fmtDate(r.date)}</td>
+<td className="py-3">{fmtCurr(r.claimed)}</td>
+<td className="py-3">{fmtCurr(r.certified)}</td>
+<td className="py-3">
+<StatusPill status={r.status} />
+</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+) : (
+<div className="space-y-4">
+{/* Summary tiles */}
+<div className="grid gap-4 md:grid-cols-3">
+<Card>
+<CardHeader title="Advance Amount" />
+<CardBody>
+<div className="text-xl font-bold">{fmtCurr(pkg.ap.amount)}</div>
+</CardBody>
+</Card>
+<Card>
+<CardHeader title="Recovered to Date" />
+<CardBody>
+<div className="text-xl font-bold">{fmtCurr(pkg.ap.recovered)}</div>
+</CardBody>
+</Card>
+<Card>
+<CardHeader title="Balance" />
+<CardBody>
+<div className="text-xl font-bold">{fmtCurr(pkg.ap.balance)}</div>
+</CardBody>
+</Card>
+</div>
+
+<div className="flex flex-wrap items-center gap-6 text-sm">
+<div>
+<span className="text-gray-600">Status: </span>
+<span className={`font-semibold ${apColor}`}>{pkg.ap.status}</span>
+</div>
+{pkg.ap.guaranteeNo && (
+<div>
+<span className="text-gray-600">Guarantee: </span>
+<span className="font-semibold">{pkg.ap.guaranteeNo}</span>
+</div>
+)}
+{pkg.ap.startIPC && (
+<div>
+<span className="text-gray-600">Recovery started from: </span>
+<span className="font-semibold">{pkg.ap.startIPC}</span>
+</div>
+)}
+</div>
+
+{/* Tiny breakdown list (optional) */}
+<div className="overflow-x-auto">
+<table className="w-full text-left">
+<thead>
+<tr className="text-sm text-gray-600">
+<th className="py-3">Reference</th>
+<th className="py-3">Description</th>
+<th className="py-3">Amount</th>
+</tr>
+</thead>
+<tbody>
+<tr className="border-t text-sm">
+<td className="py-3">AP Granted</td>
+<td className="py-3">Advance payment principal</td>
+<td className="py-3">{fmtCurr(pkg.ap.amount)}</td>
+</tr>
+<tr className="border-t text-sm">
+<td className="py-3">Recovered</td>
+<td className="py-3">Deductions across IPCs</td>
+<td className="py-3">{fmtCurr(pkg.ap.recovered)}</td>
+</tr>
+<tr className="border-t text-sm">
+<td className="py-3">Balance</td>
+<td className="py-3">Remaining to be recovered</td>
+<td className="py-3">{fmtCurr(pkg.ap.balance)}</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+)}
+</div>
+</div>
+</div>
+);
 }
-
-function NextCcModal({
-  rows,
-  onClose,
+function ValueBreakdownModal({
+open,
+onClose,
+base,
+coImpact,
+claimImpact,
 }: {
-  rows: ChangeRecord[];
-  onClose: () => void;
+open: boolean;
+onClose: () => void;
+base: number;
+coImpact: number;
+claimImpact: number;
 }) {
-  const summary = useMemo(() => computeNextCcSummary(rows), [rows]);
-  const ccRows = summary.rows;
+if (!open) return null;
+const actual = base + coImpact + claimImpact;
 
-  if (ccRows.length === 0) return null;
+return (
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+<div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+<div className="flex items-center justify-between border-b px-6 py-4">
+<h3 className="text-lg font-semibold">Actual Contract Value – Breakdown</h3>
+<button
+onClick={onClose}
+className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+>
+Close
+</button>
+</div>
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[80vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">
-              Change Committee
-            </div>
-            <div className="text-xl font-semibold">
-              Next CC Meeting –{" "}
-              {`CC-${summary.nextCcNo.toString().padStart(2, "0")}`}
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full px-4"
-            onClick={onClose}
-          >
-            Close
-          </Button>
-        </div>
+<div className="px-6 py-4">
+<table className="w-full text-left">
+<tbody className="text-sm">
+<tr className="border-b">
+<td className="py-3 text-gray-600">Base Award (selected packages)</td>
+<td className="py-3 font-semibold text-right">{fmtCurr(base)}</td>
+</tr>
+<tr className="border-b">
+<td className="py-3 text-gray-600">Change Orders (Approved)</td>
+<td className="py-3 font-semibold text-right">{fmtCurr(coImpact)}</td>
+</tr>
+<tr className="border-b">
+<td className="py-3 text-gray-600">Claims (Approved / Certified)</td>
+<td className="py-3 font-semibold text-right">{fmtCurr(claimImpact)}</td>
+</tr>
+<tr>
+<td className="py-3 text-gray-900 font-semibold">Actual Contract Value</td>
+<td className="py-3 text-right text-gray-900 font-bold">{fmtCurr(actual)}</td>
+</tr>
+</tbody>
+</table>
 
-        {/* Top summary block */}
-        <div className="px-6 py-3 border-b">
-          <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                Total PCRs on agenda
-              </span>
-              <span className="font-medium">{summary.total}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">PCRs targeting EI</span>
-              <span className="font-medium">{summary.eiCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                PCRs targeting CO / V / VOS
-              </span>
-              <span className="font-medium">{summary.coCount}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="px-6 py-4 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-muted-foreground border-b">
-              <tr className="align-middle">
-                <th className="py-2 pr-3 whitespace-nowrap">Ref ID</th>
-                <th className="py-2 pr-3 whitespace-nowrap">Pkg</th>
-                <th className="py-2 pr-3">Title</th>
-                <th className="py-2 pr-3 whitespace-nowrap">Target</th>
-                <th className="py-2 pr-3 whitespace-nowrap text-right">
-                  Est. value
-                </th>
-                <th className="py-2 pr-3 w-56">Sponsor</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y">
-              {ccRows.map((r) => {
-                const targetLabel =
-                  r.target === "EI" ? "EI" : "CO / V / VOS";
-                const isCarryOver = typeof r.ccPreviousMeeting === "number";
-                const statusLabel = isCarryOver
-                  ? `Carry-over (from CC-${r.ccPreviousMeeting
-                      ?.toString()
-                      .padStart(2, "0")})`
-                  : "First time in this CC";
-
-                return (
-                  <tr key={r.id} className="align-top">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">
-                      {r.id}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <span className="inline-flex w-7 h-7 rounded-full bg-muted items-center justify-center text-xs font-semibold">
-                        {r.package}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3">
-                      <div className="leading-snug">{r.title}</div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">
-                        {statusLabel}
-                      </div>
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      <span className="inline-flex px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 text-xs font-medium">
-                        {targetLabel}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap text-right tabular-nums">
-                      {typeof r.estimated === "number"
-                        ? fmt.format(r.estimated)
-                        : "—"}
-                    </td>
-                    <td className="py-2 pr-3 w-56 align-top">
-                      <div className="leading-snug max-w-sm break-words">
-                        {r.sponsor ?? "—"}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Note */}
-        <div className="px-6 py-3 border-t text-xs text-muted-foreground">
-          Note: PCRs are grouped based on whether they are{" "}
-          <span className="font-medium">first time</span> in this CC or{" "}
-          <span className="font-medium">carry-over</span> from previous CC
-          meetings (using the <code>ccPreviousMeeting</code> field).
-        </div>
-      </div>
-    </div>
-  );
+<p className="mt-3 text-xs text-gray-500">
+Note: Only items with status <span className="font-semibold">Approved</span> are included.
+For COs, uses <em>Actual</em> when available, otherwise <em>Estimated</em>. For Claims, uses
+<em> Certified</em> when available, otherwise <em>Claimed</em>.
+</p>
+</div>
+</div>
+</div>
+);
 }
 
-// ==========================================
-// Path timeline (for each table section)
-// ==========================================
-type PathTimelineProps = {
-  label: string;
-  stages: string[];
+/** --------------------------
+* Main Page
+* -------------------------- */
+export default function Page() {
+const [selectedPkgs, setSelectedPkgs] = React.useState<PaymentPkg["id"][]>(
+["A", "B", "C", "D", "F", "G", "I2", "PMEC"]
+);
+const [search, setSearch] = React.useState("");
+const [time, setTime] = React.useState<"All" | "30d" | "60d" | "90d" | "YTD">("All");
+const inTimeRange = React.useCallback((iso: string) => {
+if (time === "All") return true;
+
+const d = new Date(iso);
+const now = new Date();
+
+if (time === "YTD") {
+const jan1 = new Date(now.getFullYear(), 0, 1);
+return d >= jan1 && d <= now;
+}
+
+const days = time === "30d" ? 30 : time === "60d" ? 60 : 90;
+const cutoff = new Date(now);
+cutoff.setDate(now.getDate() - days);
+return d >= cutoff && d <= now;
+}, [time]);
+
+const TIME_OPTIONS = [
+{ label: "All", key: "All" as const },
+{ label: "Last 30d", key: "30d" as const },
+{ label: "Last 60d", key: "60d" as const },
+{ label: "Last 90d", key: "90d" as const },
+{ label: "YTD", key: "YTD" as const },
+] as const;
+
+// === Modals state ===
+const [modalPkg, setModalPkg] = React.useState<PaymentPkg | null>(null);
+const [openModal, setOpenModal] = React.useState(false);
+
+// Value Breakdown modal
+const [breakdownOpen, setBreakdownOpen] = React.useState(false);
+
+// Open IPCs/AP modal for a specific package
+const openIPCs = (pkg: PaymentPkg) => {
+setModalPkg(pkg);
+setOpenModal(true);
 };
 
-function PathTimeline({ label, stages }: PathTimelineProps) {
-  return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between px-4 pt-4 pb-2 gap-2">
-      <div className="text-sm font-semibold text-neutral-800">{label}</div>
-      <div className="flex items-center gap-2 text-[11px] text-neutral-700 flex-wrap">
-        {stages.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-900 font-medium">
-              {s}
-            </span>
-            {i < stages.length - 1 && (
-              <span className="text-neutral-300 text-base leading-none">
-                →
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+// --- CO filter state ---
+const CO_STATUSES = ["All", "Proposed", "In Review", "Approved", "Rejected"] as const;
+const [coFilter, setCoFilter] =
+React.useState<(typeof CO_STATUSES)[number]>("All");
+
+// --- CLAIMS filter state ---
+const CLAIM_STATUSES = ["All", "Submitted", "In Review", "Approved", "Rejected"] as const;
+const [claimFilter, setClaimFilter] =
+React.useState<(typeof CLAIM_STATUSES)[number]>("All");
+
+// ONE unified filtered array for COs: package + search + status pill
+const cosFiltered = React.useMemo(() => {
+return cos.filter((c) =>
+selectedPkgs.includes(c.pkg) &&
+(search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+(coFilter === "All" ? true : (c.status || "").trim() === coFilter)
+);
+}, [selectedPkgs, search, coFilter]);
+
+// ONE unified filtered array for Claims: package + search + status pill + time
+const claimsFiltered = React.useMemo(() => {
+return claims.filter((c) =>
+selectedPkgs.includes(c.pkg) &&
+(search ? c.title.toLowerCase().includes(search.toLowerCase()) : true) &&
+(claimFilter === "All" ? true : (c.status || "").trim() === claimFilter) &&
+inTimeRange(c.date)
+);
+}, [selectedPkgs, search, claimFilter, time]);
+
+// === Derived totals (base/awarded) + impacts + actual ===
+const visiblePkgs = React.useMemo(
+() => payments.filter((p) => selectedPkgs.includes(p.id)),
+[selectedPkgs]
+);
+
+// BASE (awarded) totals
+const baseTotalValue = React.useMemo(
+() => visiblePkgs.reduce((s, p) => s + p.value, 0),
+[visiblePkgs]
+);
+
+const totalPaid = React.useMemo(
+() => visiblePkgs.reduce((s, p) => s + p.paid, 0),
+[visiblePkgs]
+);
+
+const percentPaid = baseTotalValue ? (totalPaid / baseTotalValue) * 100 : 0;
+
+// Impacts from APPROVED COs and APPROVED Claims
+const coImpact = React.useMemo(
+() =>
+cos
+.filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+.reduce((sum, c) => sum + (c.actual ?? c.estimated ?? 0), 0),
+[selectedPkgs]
+);
+
+const claimImpact = React.useMemo(
+() =>
+claims
+.filter((c) => selectedPkgs.includes(c.pkg) && c.status === "Approved")
+.reduce((sum, c) => sum + (c.certified ?? c.claimed ?? 0), 0),
+[selectedPkgs]
+);
+
+// Actual = Base + COs(approved) + Claims(approved)
+const actualTotalValue = baseTotalValue + coImpact + claimImpact;
+
+// % paid against ACTUAL value
+const percentPaidOfActual =
+actualTotalValue > 0 ? (totalPaid / actualTotalValue) * 100 : 0;
+// ---- Status counts that follow the same filters as the tables ----
+function countByStatus<T extends { status?: string }>(
+items: T[],
+order: readonly string[]
+): Record<string, number> {
+const init: Record<string, number> = Object.fromEntries(order.map(k => [k, 0]));
+for (const it of items) {
+const key = (it.status || "").trim();
+if (key in init) init[key] += 1;
+}
+return init;
 }
 
-// ==========================================
-// Common table headers
-// ==========================================
-function ChangeTableHeader({
-  showMiddleColumn = false,
-  middleLabel = "Issued Item",
-}: {
-  showMiddleColumn?: boolean;
-  middleLabel?: string;
-}) {
-  return (
-    <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-semibold text-neutral-500 bg-white border-y">
-      <div className="col-span-1">Ref ID</div>
-      <div className="col-span-1">Package</div>
-      <div className="col-span-2">Title</div>
-      <div className="col-span-2">Stage</div>
+const CO_STATUS_ORDER = ["Approved", "In Review", "Proposed", "Rejected"] as const;
+const CLAIM_STATUS_ORDER = ["Approved", "In Review", "Submitted", "Rejected"] as const;
 
-      <div
-        className={clsx(
-          "col-span-1",
-          !showMiddleColumn && "hidden",
-        )}
-      >
-        {showMiddleColumn ? middleLabel : null}
-      </div>
+const coCounts = React.useMemo(
+() => countByStatus(cosFiltered, CO_STATUS_ORDER),
+[cosFiltered]
+);
 
-      <div className="col-span-2">Sponsor</div>
-      <div className="col-span-1 text-right">Estimated</div>
-      <div className="col-span-1 text-right">Actual</div>
-      <div className="col-span-1 text-right">Variance</div>
-    </div>
-  );
+const claimCounts = React.useMemo(
+() => countByStatus(claimsFiltered, CLAIM_STATUS_ORDER),
+[claimsFiltered]
+);
+
+// Convenience: “open” = Submitted + In Review for Claims
+const claimsOpen =
+(claimCounts["Submitted"] ?? 0) + (claimCounts["In Review"] ?? 0);
+
+/** --------------------------
+* CSV Export handlers
+* -------------------------- */
+
+// Payments by Contract (visible packages only)
+const exportPaymentsCSV = React.useCallback(() => {
+const headers = [
+"Package",
+"Title",
+"Awarded Value (AED)",
+"Paid to Date (AED)",
+"% Paid",
+];
+const rows = visiblePkgs.map(p => {
+const pct = p.value > 0 ? (p.paid / p.value) * 100 : 0;
+return [
+p.id,
+p.title,
+p.value,
+p.paid,
+Math.round(pct),
+];
+});
+downloadCSV("payments_by_contract.csv", headers, rows);
+}, [visiblePkgs]);
+
+// Change Orders (current filters applied via cosFiltered)
+const exportCOsCSV = React.useCallback(() => {
+const headers = [
+"CO ID",
+"Package",
+"Title",
+"Status",
+"Estimated (AED)",
+"Actual (AED)",
+"Variance (AED)",
+"Date",
+];
+const rows = cosFiltered.map(c => {
+const variance = (c.actual == null || c.estimated == null) ? "" : (c.actual - c.estimated);
+return [
+c.id,
+c.pkg,
+c.title,
+c.status,
+c.estimated ?? "",
+c.actual ?? "",
+variance,
+fmtDate(c.date),
+];
+});
+downloadCSV("change_orders.csv", headers, rows);
+}, [cosFiltered]);
+
+// Claims (current filters applied via claimsFiltered)
+const exportClaimsCSV = React.useCallback(() => {
+const headers = [
+"Claim ID",
+"Package",
+"Title",
+"Status",
+"Claimed (AED)",
+"Certified (AED)",
+"Variance (AED)",
+"Days Open",
+"Date",
+];
+const now = Date.now();
+const rows = claimsFiltered.map(c => {
+const variance = c.certified == null ? "" : (c.certified - c.claimed);
+const daysOpen = Math.max(0, Math.round((now - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)));
+return [
+c.id,
+c.pkg,
+c.title,
+c.status,
+c.claimed,
+c.certified ?? "",
+variance,
+daysOpen,
+fmtDate(c.date),
+];
+});
+downloadCSV("claims.csv", headers, rows);
+}, [claimsFiltered]);
+// ===== Provisional Sum (PS) helpers — hoisted version (fixes build error) =====
+function getPSTotal(id: PaymentPkg["id"]): number {
+const totals: Record<PaymentPkg["id"], number> = {
+A: 10_000_000,
+B: 7_500_000,
+C: 12_000_000,
+D: 4_000_000,
+F: 8_500_000,
+G: 2_500_000,
+I2: 3_200_000,
+PMEC: 1_800_000,
+};
+return totals[id] ?? 0;
 }
 
-function CompletedTableHeader() {
-  return (
-    <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-semibold text-neutral-500 bg-white border-y">
-      <div className="col-span-1">Ref ID</div>
-      <div className="col-span-1">Package</div>
-      <div className="col-span-3">Title</div>
-      <div className="col-span-2">Issued Item</div>
-      <div className="col-span-2">Sponsor</div>
-      <div className="col-span-1 text-right">Estimated</div>
-      <div className="col-span-1 text-right">Actual</div>
-      <div className="col-span-1 text-right">Variance</div>
-    </div>
-  );
+function getPSPercents(id: PaymentPkg["id"]) {
+const used: Record<PaymentPkg["id"], number> = { A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 };
+const revw: Record<PaymentPkg["id"], number> = { A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7, PMEC: 10 };
+const usedPct = used[id] ?? 0;
+const inReviewPct = revw[id] ?? 0;
+const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
+return { usedPct, inReviewPct, remainingPct };
 }
 
-// ==========================================
-// Package chips
-// ==========================================
-const PKG_COLORS: Record<PackageId, string> = {
-  A: "bg-blue-500",
-  B: "bg-teal-600",
-  C: "bg-orange-500",
-  D: "bg-rose-600",
-  E: "bg-gray-500",
-  F: "bg-violet-600",
-  G: "bg-emerald-600",
-  I2: "bg-orange-700",
-  PMEC: "bg-violet-700",
+// Replace your current exportSummaryCSV with this:
+const exportSummaryCSV = React.useCallback(() => {
+// --- CO + Claim aggregates with current filters ---
+const coApproved = cos
+.filter(c => selectedPkgs.includes(c.pkg) && c.status === "Approved");
+const coApprovedAmt = coApproved
+.reduce((s, c) => s + (c.actual ?? c.estimated ?? 0), 0);
+
+const claimsOpenCnt = claimsFiltered
+.filter(c => c.status === "In Review" || c.status === "Submitted").length;
+const claimsApproved = claimsFiltered
+.filter(c => c.status === "Approved");
+const claimsApprovedAmt = claimsApproved
+.reduce((s, c) => s + (c.certified ?? c.claimed ?? 0), 0);
+
+// --- Provisional Sum aggregates for visible packages ---
+const psAgg = visiblePkgs.reduce(
+(acc, p) => {
+const total = getPSTotal(p.id);
+const { usedPct, inReviewPct } = getPSPercents(p.id);
+const usedAmt = Math.round((total * usedPct) / 100);
+const revAmt = Math.round((total * inReviewPct) / 100);
+acc.total += total; acc.used += usedAmt; acc.review += revAmt;
+return acc;
+},
+{ total: 0, used: 0, review: 0 }
+);
+const psRemaining = Math.max(0, psAgg.total - psAgg.used - psAgg.review);
+
+// --- Build one flat table ---
+const rows = [
+{ Section: "Context", Metric: "Exported At", Value: new Date().toLocaleString() },
+{ Section: "Context", Metric: "Selected Packages", Value: selectedPkgs.join(" ") },
+{ Section: "", Metric: "", Value: "" },
+
+{ Section: "Totals", Metric: "Base Awarded (selected)", Value: baseTotalValue },
+{ Section: "Totals", Metric: "Approved COs Impact", Value: coImpact },
+{ Section: "Totals", Metric: "Approved Claims Impact", Value: claimImpact },
+{ Section: "Totals", Metric: "Actual Total Contract Value", Value: actualTotalValue },
+{ Section: "Totals", Metric: "Paid to Date", Value: totalPaid },
+{ Section: "Totals", Metric: "% Paid of Actual", Value: Math.round(percentPaidOfActual) + "%" },
+{ Section: "", Metric: "", Value: "" },
+
+{ Section: "COs", Metric: "Count (visible filters)", Value: cosFiltered.length },
+{ Section: "COs", Metric: "Approved Count", Value: coApproved.length },
+{ Section: "COs", Metric: "Approved Amount", Value: coApprovedAmt },
+{ Section: "", Metric: "", Value: "" },
+
+{ Section: "Claims", Metric: "Count (visible filters)", Value: claimsFiltered.length },
+{ Section: "Claims", Metric: "Open (Submitted + In Review)",Value: claimsOpenCnt },
+{ Section: "Claims", Metric: "Approved Count", Value: claimsApproved.length },
+{ Section: "Claims", Metric: "Approved Amount", Value: claimsApprovedAmt },
+{ Section: "", Metric: "", Value: "" },
+
+{ Section: "Provisional Sums", Metric: "Total PS", Value: psAgg.total },
+{ Section: "Provisional Sums", Metric: "Used", Value: psAgg.used },
+{ Section: "Provisional Sums", Metric: "In Review", Value: psAgg.review },
+{ Section: "Provisional Sums", Metric: "Remaining", Value: psRemaining },
+];
+
+// Uses the Option-B helper (object-array signature)
+downloadCSV("summary.csv", rows);
+}, [
+selectedPkgs, baseTotalValue, coImpact, claimImpact, actualTotalValue, totalPaid,
+percentPaidOfActual, cosFiltered, claimsFiltered,
+]);
+
+// ✅ Toggle package selection (used by the package pills)
+const togglePkg = React.useCallback((id: PaymentPkg["id"]) => {
+setSelectedPkgs((prev) =>
+prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+);
+}, []);
+
+// Build flat rows for CSV from currently visible packages
+const psRows = React.useMemo(() => {
+return payments
+.filter(p => selectedPkgs.includes(p.id))
+.map(p => {
+const totalPS = getPSTotal(p.id);
+const { usedPct, inReviewPct, remainingPct } = getPSPercents(p.id);
+const usedAmt = Math.round((totalPS * usedPct) / 100);
+const inReviewAmt = Math.round((totalPS * inReviewPct) / 100);
+const remainingAmt = Math.max(0, totalPS - usedAmt - inReviewAmt);
+
+return {
+package: p.id,
+title: p.title,
+total_ps: totalPS,
+used_pct: usedPct,
+used_amt: usedAmt,
+in_review_pct: inReviewPct,
+in_review_amt: inReviewAmt,
+remaining_pct: remainingPct,
+remaining_amt: remainingAmt,
+};
+});
+}, [payments, selectedPkgs, getPSTotal, getPSPercents]);
+
+// Each package's brand color for the filter pills
+const PKG_STYLES: Record<PaymentPkg["id"], {
+active: string; // filled background when selected
+inactive: string; // border/text when not selected
+hover: string; // hover bg for inactive
+}> = {
+A: { active: "bg-blue-600", inactive: "border-blue-300 text-blue-700", hover: "hover:bg-blue-50" },
+B: { active: "bg-emerald-600", inactive: "border-emerald-300 text-emerald-700", hover: "hover:bg-emerald-50" },
+C: { active: "bg-orange-600", inactive: "border-orange-300 text-orange-700", hover: "hover:bg-orange-50" },
+D: { active: "bg-red-600", inactive: "border-red-300 text-red-700", hover: "hover:bg-red-50" },
+F: { active: "bg-violet-600", inactive: "border-violet-300 text-violet-700", hover: "hover:bg-violet-50" },
+G: { active: "bg-teal-600", inactive: "border-teal-300 text-teal-700", hover: "hover:bg-teal-50" },
+I2: { active: "bg-orange-700", inactive: "border-orange-300 text-orange-700", hover: "hover:bg-orange-50" },
+PMEC:{ active: "bg-violet-700", inactive: "border-violet-300 text-violet-700", hover: "hover:bg-violet-50" },
 };
 
-function PackageChips({
-  selected,
-  onSelect,
-}: {
-  selected: PackageId | "All";
-  onSelect: (p: PackageId | "All") => void;
-}) {
-  const items: PackageId[] = ["A", "B", "C", "D", "E", "F", "G", "I2", "PMEC"];
+const allPkgs = [
+"A",
+"B",
+"C",
+"D",
+"F",
+"G",
+"I2",
+"PMEC",
+] as PaymentPkg["id"][];
 
-  return (
-    <div className="flex items-center gap-3 justify-between rounded-2xl border p-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm text-foreground/80 mr-1">Packages:</span>
-        {items.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onSelect(p)}
-            className={clsx(
-              "w-9 h-9 rounded-full text-white text-[11px] font-semibold grid place-items-center",
-              PKG_COLORS[p],
-              selected === p
-                ? "ring-2 ring-offset-2 ring-gray-900"
-                : "opacity-90 hover:opacity-100",
-            )}
-            title={`Package ${p}`}
-          >
-            {p}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="text-sm underline-offset-2 hover:underline"
-          onClick={() => onSelect("All")}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          className="text-sm underline-offset-2 hover:underline"
-          onClick={() => onSelect("All")}
-        >
-          None
-        </button>
-      </div>
-    </div>
-  );
+return (
+<div className="min-h-screen bg-white">
+<header className="mx-auto max-w-7xl px-6 pt-8 text-center">
+<h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+Project Control & Contract Management Dashboard
+</h1>
+<p className="mt-1 text-gray-600">
+Real-time visibility over Payments, COs, Claims, AP, and Provisional Sums
+</p>
+
+
+{/* Centered export actions */}
+<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+<button
+onClick={exportSummaryCSV}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export Summary
+</button>
+<button
+onClick={exportPaymentsCSV}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export Payments
+</button>
+<button
+onClick={exportCOsCSV}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export COs
+</button>
+<button
+onClick={exportClaimsCSV}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export Claims
+</button>
+{/* NEW: Provisional Sum Utilization */}
+<button
+onClick={() => downloadCSV("Provisional_Sum_Utilization.csv", psRows)}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export PS
+</button>
+</div>
+
+</header>
+
+<main className="mx-auto max-w-7xl px-6 pb-20">
+{/* Filters */}
+<Card className="mt-6">
+<CardBody className="pt-5">
+<div className="mt-5 flex flex-wrap items-center gap-2">
+<div className="mr-2 font-semibold">Packages:</div>
+
+{allPkgs.map((p) => {
+const active = selectedPkgs.includes(p);
+const s = PKG_STYLES[p];
+return (
+<button
+key={p}
+onClick={() => togglePkg(p)}
+className={[
+"h-10 w-10 rounded-full text-sm font-semibold transition",
+active
+? `${s.active} text-white`
+: `bg-white border ${s.inactive} ${s.hover}`
+].join(" ")}
+aria-pressed={active}
+title={`Toggle Package ${p}`}
+>
+{p}
+</button>
+);
+})}
+
+<button
+className="ml-2 rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+onClick={() => setSelectedPkgs(allPkgs)}
+>
+All
+</button>
+<button
+className="rounded-full px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+onClick={() => setSelectedPkgs([])}
+>
+None
+</button>
+
+{/* search + time pills */}
+<div className="ml-auto flex items-center gap-3">
+<input
+value={search}
+onChange={(e) => setSearch(e.target.value)}
+placeholder="Search titles..."
+className="w-72 rounded-xl border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-gray-900"
+/>
+
+<div className="hidden items-center gap-2 md:flex">
+{TIME_OPTIONS.map((t) => (
+<Pill
+key={t.key}
+active={time === t.key}
+onClick={() => setTime(t.key)}
+>
+{t.label}
+</Pill>
+))}
+</div>
+</div>
+</div>
+</CardBody>
+</Card>
+
+{/* KPI Cards */}
+<div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+{/* 1) Actual Total Contract Value (FIRST) */}
+<Card>
+<CardHeader title="Actual Total Contract Value" />
+<CardBody>
+<div className="text-2xl font-bold">{fmtCurr(actualTotalValue)}</div>
+<div className="mt-1 text-sm text-gray-500">
+Base {fmtCurr(baseTotalValue)} • +COs {fmtCurr(coImpact)} • +Claims {fmtCurr(claimImpact)}
+</div>
+<button
+onClick={() => setBreakdownOpen(true)}
+className="mt-3 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+View Breakdown
+</button>
+</CardBody>
+</Card>
+
+{/* 2) Paid to Date (SECOND) */}
+<Card>
+<CardHeader title="Paid to Date" />
+<CardBody>
+<div className="text-2xl font-bold">{fmtCurr(totalPaid)}</div>
+<div className="mt-2 text-sm text-gray-500">of Actual Value</div>
+<div className="mt-1 flex items-center gap-3">
+<div className="w-full">
+<Progress value={percentPaidOfActual} />
+</div>
+<div className="w-12 text-right text-sm font-semibold">
+{fmtPct(percentPaidOfActual)}
+</div>
+</div>
+</CardBody>
+</Card>
+
+{/* 3) COs */}
+<Card>
+<CardHeader title="Change Orders (COs)" />
+<CardBody>
+<div className="text-2xl font-bold">{cosFiltered.length}</div>
+<div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+<div>Approved</div><div className="text-right font-semibold text-gray-900">{coCounts["Approved"] ?? 0}</div>
+<div>In Review</div><div className="text-right font-semibold text-gray-900">{coCounts["In Review"] ?? 0}</div>
+<div>Proposed</div><div className="text-right font-semibold text-gray-900">{coCounts["Proposed"] ?? 0}</div>
+<div>Rejected</div><div className="text-right font-semibold text-gray-900">{coCounts["Rejected"] ?? 0}</div>
+</div>
+</CardBody>
+</Card>
+
+{/* 4) Claims */}
+<Card>
+<CardHeader title="Claims" />
+<CardBody>
+<div className="text-2xl font-bold">{claimsFiltered.length}</div>
+<div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+<div>Approved</div><div className="text-right font-semibold text-gray-900">{claimCounts["Approved"] ?? 0}</div>
+<div>In Review</div><div className="text-right font-semibold text-gray-900">{claimCounts["In Review"] ?? 0}</div>
+<div>Submitted</div><div className="text-right font-semibold text-gray-900">{claimCounts["Submitted"] ?? 0}</div>
+<div>Rejected</div><div className="text-right font-semibold text-gray-900">{claimCounts["Rejected"] ?? 0}</div>
+<div className="pt-1 border-t mt-1">Open (In Review + Submitted)</div>
+<div className="pt-1 border-t mt-1 text-right font-semibold text-gray-900">{claimsOpen}</div>
+</div>
+</CardBody>
+</Card>
+</div>
+
+{/* Payments by Contract */}
+<div className="mt-10 flex items-center justify-between">
+<h2 className="text-2xl font-bold">Payments by Contract</h2>
+<button
+onClick={exportPaymentsCSV}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export CSV
+</button>
+</div>
+<div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+{visiblePkgs.map((p) => {
+const pct = (p.paid / p.value) * 100;
+return (
+<Card key={p.id} className={`ring-1 ${p.color}`}>
+<CardBody className="pt-5">
+<div className="mb-2 text-lg font-semibold text-gray-900">
+{p.title}
+</div>
+<div className="flex items-baseline gap-3">
+<div className="text-4xl font-bold">{fmtPct(pct)}</div>
+</div>
+<div className="mt-4">
+<Progress value={pct} />
+</div>
+<div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-600">
+<div>
+Paid:{" "}
+<span className="font-semibold text-gray-900">
+{fmtCurr(p.paid)}
+</span>
+</div>
+<div>
+Value:{" "}
+<span className="font-semibold text-gray-900">
+{fmtCurr(p.value)}
+</span>
+</div>
+</div>
+
+{/* Details button opens modal (IPCs + Advance Payment) */}
+<div className="mt-4">
+<button
+onClick={() => openIPCs(p)}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+aria-label={`Open details for ${p.title}`}
+>
+Details
+</button>
+</div>
+</CardBody>
+</Card>
+);
+})}
+</div>
+
+{/* Provisional Sum Utilization */}
+<div className="mt-12 flex items-center justify-between">
+<h2 className="text-2xl font-bold">Provisional Sum Utilization</h2>
+
+{/* ✅ CSV Export button */}
+<button
+onClick={() => downloadCSV("Provisional_Sum_Utilization.csv", psRows)}
+className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export CSV
+</button>
+</div>
+
+<div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+{visiblePkgs.map((p) => {
+// Total PS amount per package (edit these to your real totals)
+const totalPS =
+({ A: 10_000_000, B: 7_500_000, C: 12_000_000, D: 4_000_000, F: 8_500_000, G: 2_500_000, I2: 3_200_000, PMEC: 1_800_000 } as Record<string, number>)[p.id] ?? 0;
+
+// Percentages
+const usedPct = ({ A: 22, B: 31, C: 44, D: 10, F: 51, G: 6, I2: 28, PMEC: 12 } as Record<string, number>)[p.id] ?? 0;
+const inReviewPct = ({ A: 35, B: 12, C: 30, D: 18, F: 21, G: 9, I2: 7, PMEC: 10 } as Record<string, number>)[p.id] ?? 0;
+const remainingPct = Math.max(0, 100 - usedPct - inReviewPct);
+
+// Amounts
+const usedAmt = Math.round((totalPS * usedPct) / 100);
+const inReviewAmt = Math.round((totalPS * inReviewPct) / 100);
+const remainingAmt = Math.max(0, totalPS - usedAmt - inReviewAmt);
+
+return (
+<Card key={`psu-${p.id}`} className={`ring-1 ${p.color}`}>
+<CardBody className="pt-5">
+<div className="mb-2 text-lg font-semibold text-gray-900">
+{p.id === "PMEC" ? "Package PMEC" : `Package ${p.id}`}
+</div>
+
+{/* Total Provisional Sum */}
+<div className="text-sm text-gray-500">Total Provisional Sum</div>
+<div className="text-xl font-bold mb-4">{fmtCurr(totalPS)}</div>
+
+{/* Used */}
+<div className="flex items-center justify-between text-sm">
+<span className="text-gray-700">Used</span>
+<span className="font-semibold">
+{fmtCurr(usedAmt)} • {usedPct}%
+</span>
+</div>
+<Progress value={usedPct} />
+
+{/* In Review */}
+<div className="mt-3 flex items-center justify-between text-sm">
+<span className="text-gray-700">In Review</span>
+<span className="font-semibold">
+{fmtCurr(inReviewAmt)} • {inReviewPct}%
+</span>
+</div>
+<Progress value={inReviewPct} />
+
+{/* Remaining */}
+<div className="mt-3 flex items-center justify-between text-sm">
+<span className="text-gray-700">Remaining</span>
+<span className="font-semibold">
+{fmtCurr(remainingAmt)} • {remainingPct}%
+</span>
+</div>
+<Progress value={remainingPct} />
+</CardBody>
+</Card>
+);
+})}
+</div>
+
+{/* Change Orders (COs) */}
+<h2 className="mt-12 text-2xl font-bold">Change Orders (COs)</h2>
+
+<Card className="mt-4">
+<CardHeader
+right={
+<div className="flex gap-2">
+{CO_STATUSES.map((s) => (
+<button
+key={s}
+onClick={() => setCoFilter(s)}
+className={[
+"rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+coFilter === s
+? "bg-gray-900 text-white"
+: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+].join(" ")}
+>
+{s}
+</button>
+))}
+
+<button
+onClick={exportCOsCSV}
+className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export CSV
+</button>
+</div>
+}
+/>
+
+<CardBody className="pt-0">
+<div className="overflow-x-auto">
+<table className="w-full">
+<thead>
+<tr className="text-left text-gray-600">
+<th className="py-3">CO ID</th>
+<th className="py-3">Package</th>
+<th className="py-3">Title</th>
+<th className="py-3">Status</th>
+<th className="py-3">Estimated</th>
+<th className="py-3">Actual</th>
+<th className="py-3">Variance</th>
+<th className="py-3">Date</th>
+</tr>
+</thead>
+<tbody>
+{cosFiltered.map((c) => {
+const variance =
+c.actual == null || c.estimated == null ? null : c.actual - c.estimated;
+
+return (
+<tr key={c.id} className="border-t">
+<td className="py-3 font-semibold">{c.id}</td>
+
+<td className="py-3">
+<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
+{c.pkg}
+</span>
+</td>
+
+<td className="py-3">{c.title}</td>
+
+<td className="py-3">
+<StatusPill status={c.status as Status} />
+</td>
+
+<td className="py-3">{fmtCurr(c.estimated ?? null)}</td>
+<td className="py-3">{fmtCurr(c.actual ?? null)}</td>
+
+<td
+className={`py-3 ${
+variance != null
+? variance > 0
+? "text-rose-600"
+: "text-emerald-600"
+: "text-gray-900"
+}`}
+>
+{variance == null
+? "—"
+: `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString(
+"en-US"
+)}`}
+</td>
+
+<td className="py-3">{fmtDate(c.date)}</td>
+</tr>
+);
+})}
+
+{cosFiltered.length === 0 && (
+<tr>
+<td colSpan={8} className="py-6 text-center text-gray-500 font-medium">
+No change orders found for “{coFilter}”.
+</td>
+</tr>
+)}
+</tbody>
+</table>
+</div>
+</CardBody>
+</Card>
+
+{/* Claims */}
+<h2 className="mt-12 text-2xl font-bold">Claims</h2>
+
+<Card className="mt-4">
+<CardHeader
+right={
+<div className="flex gap-2">
+{CLAIM_STATUSES.map((s) => (
+<button
+key={s}
+onClick={() => setClaimFilter(s)}
+className={[
+"rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+claimFilter === s
+? "bg-gray-900 text-white"
+: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+].join(" ")}
+>
+{s}
+</button>
+))}
+
+<button
+onClick={exportClaimsCSV}
+className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+>
+Export CSV
+</button>
+</div>
+}
+/>
+
+
+<CardBody className="pt-0">
+<div className="overflow-x-auto">
+<table className="w-full">
+<thead>
+<tr className="text-left text-gray-600">
+<th className="py-3">Claim ID</th>
+<th className="py-3">Package</th>
+<th className="py-3">Title</th>
+<th className="py-3">Status</th>
+<th className="py-3">Claimed</th>
+<th className="py-3">Certified</th>
+<th className="py-3">Variance</th>
+<th className="py-3">Days Open</th>
+<th className="py-3">Date</th>
+</tr>
+</thead>
+<tbody>
+{claimsFiltered.map((c) => {
+const variance = c.certified == null ? null : c.certified - c.claimed;
+const daysOpen = Math.max(
+0,
+Math.round((Date.now() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24))
+);
+
+return (
+<tr key={c.id} className="border-t">
+<td className="py-3 font-semibold">{c.id}</td>
+
+<td className="py-3">
+<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-semibold">
+{c.pkg}
+</span>
+</td>
+
+<td className="py-3">{c.title}</td>
+
+<td className="py-3">
+<StatusPill status={c.status as Status} />
+</td>
+
+<td className="py-3">{fmtCurr(c.claimed)}</td>
+<td className="py-3">{fmtCurr(c.certified ?? null)}</td>
+
+<td
+className={`py-3 ${
+variance != null
+? variance > 0
+? "text-rose-600"
+: "text-emerald-600"
+: "text-gray-900"
+}`}
+>
+{variance == null
+? "—"
+: `${variance > 0 ? "AED " : "-AED "}${Math.abs(variance).toLocaleString(
+"en-US"
+)}`}
+</td>
+
+<td className="py-3">
+<span
+className={`font-semibold ${
+daysOpen > 40 ? "text-amber-600" : "text-gray-900"
+}`}
+>
+{daysOpen}
+</span>
+</td>
+
+<td className="py-3">{fmtDate(c.date)}</td>
+</tr>
+);
+})}
+
+{claimsFiltered.length === 0 && (
+<tr>
+<td colSpan={9} className="py-6 text-center text-gray-500 font-medium">
+No claims found for “{claimFilter}”.
+</td>
+</tr>
+)}
+</tbody>
+</table>
+</div>
+</CardBody>
+</Card>
+
+</main>
+
+{/* Modals (render outside <main>) */}
+<IPCsModal
+open={openModal}
+onClose={() => setOpenModal(false)}
+pkg={modalPkg}
+/>
+
+<ValueBreakdownModal
+open={breakdownOpen}
+onClose={() => setBreakdownOpen(false)}
+base={baseTotalValue}
+coImpact={coImpact}
+claimImpact={claimImpact}
+/>
+</div>
+);
 }
 
-// ==========================================
-// Filters
-// ==========================================
-function Filters({
-  q,
-  setQ,
-  onExport,
-}: {
-  q: string;
-  setQ: (s: string) => void;
-  onExport: () => void;
-}) {
-  return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-2 top-2.5 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search ID / title / sponsor"
-            className="pl-8 rounded-2xl min-w-[220px]"
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button onClick={onExport} className="rounded-2xl" variant="secondary">
-          Export CSV
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================
-// Row + details
-// ==========================================
-type RowMode = "pcr" | "completed";
-
-function Row({
-  r,
-  showMiddleColumn,
-  mode,
-}: {
-  r: ChangeRecord;
-  showMiddleColumn: boolean;
-  mode: RowMode;
-}) {
-  const s = stageInfo(r.stageKey);
-  const days = daysBetween(r.stageStartDate);
-
-  const hasDocs = (r.links?.length ?? 0) > 0;
-
-  const varianceValue =
-    typeof r.estimated === "number" && typeof r.actual === "number"
-      ? r.actual - r.estimated
-      : null;
-
-  return (
-    <div className="border-b last:border-b-0 bg-white">
-      <div className="grid grid-cols-12 gap-4 px-6 py-3 items-start">
-        {/* Ref ID + documents */}
-        <div className="col-span-1">
-          <div className="text-sm font-medium">{r.id}</div>
-          {hasDocs && (
-            <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
-              {r.links!.map((lnk, i) => (
-                <a
-                  key={i}
-                  href={lnk.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:underline"
-                >
-                  <Paperclip className="w-3.5 h-3.5" />
-                  <span className="truncate">{lnk.label}</span>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Package */}
-        <div className="col-span-1">
-          <div className="w-8 h-8 rounded-full bg-muted grid place-items-center text-sm font-semibold">
-            {r.package}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div className="col-span-2">
-          <div className="text-sm leading-snug break-words max-w-xs">
-            {r.title}
-          </div>
-        </div>
-
-        {/* Stage */}
-        <div className="col-span-2">
-          <div className="inline-flex items-center gap-2 mb-1">
-            <span
-              className={clsx(
-                "px-2 py-1 rounded-2xl text-xs font-semibold",
-                s.color,
-              )}
-            >
-              {s.name}
-            </span>
-            {r.subStatus && (
-              <Badge className="rounded-2xl bg-neutral-100 text-neutral-900 border">
-                {r.subStatus}
-              </Badge>
-            )}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            Day {days} / SLA {s.slaDays}
-          </div>
-        </div>
-
-        {/* Middle column (Issued Item in completed table) */}
-        <div
-          className={clsx(
-            "col-span-1",
-            !showMiddleColumn && "hidden",
-          )}
-        >
-          {showMiddleColumn && mode === "completed" && (
-            <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 text-xs font-medium">
-              {issuedItemLabel(r)}
-            </span>
-          )}
-        </div>
-
-        {/* Sponsor */}
-        <div className="col-span-2 text-sm leading-snug break-words max-w-xs">
-          {r.sponsor ?? "—"}
-        </div>
-
-        {/* Estimated */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {typeof r.estimated === "number" ? fmt.format(r.estimated) : "—"}
-          </div>
-        </div>
-
-        {/* Actual */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {typeof r.actual === "number" ? fmt.format(r.actual) : "—"}
-          </div>
-        </div>
-
-        {/* Variance */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {varianceValue === null
-              ? "—"
-              : `${varianceValue > 0 ? "+" : varianceValue < 0 ? "-" : ""}${fmt.format(
-                  Math.abs(varianceValue),
-                )}`}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CompletedRow({ r }: { r: ChangeRecord }) {
-  const varianceValue =
-    typeof r.estimated === "number" && typeof r.actual === "number"
-      ? r.actual - r.estimated
-      : null;
-
-  return (
-    <div className="border-b last:border-b-0 bg-white">
-      <div className="grid grid-cols-12 gap-4 px-6 py-3 items-start">
-        {/* Ref ID */}
-        <div className="col-span-1">
-          <div className="text-sm font-medium">{r.id}</div>
-          {(r.links?.length ?? 0) > 0 && (
-            <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
-              {r.links!.map((lnk, i) => (
-                <a
-                  key={i}
-                  href={lnk.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:underline"
-                >
-                  <Paperclip className="w-3.5 h-3.5" />
-                  <span className="truncate">{lnk.label}</span>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Package */}
-        <div className="col-span-1">
-          <div className="w-8 h-8 rounded-full bg-muted grid place-items-center text-sm font-semibold">
-            {r.package}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div className="col-span-3">
-          <div className="text-sm leading-snug break-words">{r.title}</div>
-        </div>
-
-        {/* Issued Item */}
-        <div className="col-span-2">
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 text-xs font-medium">
-            {issuedItemLabel(r)}
-          </span>
-        </div>
-
-        {/* Sponsor */}
-        <div className="col-span-2 text-sm leading-snug break-words">
-          {r.sponsor ?? "—"}
-        </div>
-
-        {/* Estimated */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {typeof r.estimated === "number" ? fmt.format(r.estimated) : "—"}
-          </div>
-        </div>
-
-        {/* Actual */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {typeof r.actual === "number" ? fmt.format(r.actual) : "—"}
-          </div>
-        </div>
-
-        {/* Variance */}
-        <div className="col-span-1 text-right">
-          <div className="text-sm tabular-nums">
-            {varianceValue === null
-              ? "—"
-              : `${varianceValue > 0 ? "+" : varianceValue < 0 ? "-" : ""}${fmt.format(
-                  Math.abs(varianceValue),
-                )}`}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================
-// Project KPIs row (3 cards + Next CC card)
-// ==========================================
-function ProjectKPIs({
-  rows,
-  onOpenNextCc,
-}: {
-  rows: ChangeRecord[];
-  onOpenNextCc: () => void;
-}) {
-  const TOTAL_PROJECT_VALUE = 500_000_000;
-  const ALLOWED_LIMIT_PERCENT = 10;
-
-  const kpis = useMemo(() => {
-    const approved = rows.filter(
-      (r) => r.target === "CO" || r.target === "VOS",
-    );
-
-    const totalApprovedValue = approved.reduce(
-      (sum, r) => sum + (r.actual ?? 0),
-      0,
-    );
-
-    const percentageOfProject =
-      TOTAL_PROJECT_VALUE > 0
-        ? (totalApprovedValue / TOTAL_PROJECT_VALUE) * 100
-        : 0;
-
-    const limitValue = (TOTAL_PROJECT_VALUE * ALLOWED_LIMIT_PERCENT) / 100;
-    const percentOfLimit =
-      limitValue > 0 ? (totalApprovedValue / limitValue) * 100 : 0;
-
-    return {
-      totalApprovedValue,
-      percentageOfProject,
-      percentOfLimit,
-    };
-  }, [rows]);
-
-  const formatCurrency = (val: number) =>
-    `AED ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
-      {/* TOTAL PROJECT VALUE */}
-      <Card className="rounded-2xl h-full">
-        <CardContent className="p-4 flex flex-col justify-between h-full">
-          <div>
-            <p className="text-sm text-muted-foreground">Total Project Value</p>
-            <p className="text-xl font-semibold mt-1">
-              {formatCurrency(TOTAL_PROJECT_VALUE)}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-start mt-4"
-            onClick={() => {
-              alert("Later this can show breakdown by package (A, B, C, etc.)");
-            }}
-          >
-            Details
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* TOTAL APPROVED CHANGE VALUE */}
-      <Card className="rounded-2xl h-full">
-        <CardContent className="p-4 flex flex-col justify-between h-full">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Total Approved Change Value
-            </p>
-            <p className="text-xl font-semibold mt-1">
-              {formatCurrency(kpis.totalApprovedValue)}
-            </p>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              of {formatCurrency((TOTAL_PROJECT_VALUE * 10) / 100)} limit (10%
-              of project)
-            </p>
-
-            <div className="mt-2">
-              <Progress value={kpis.percentOfLimit} />
-              <p className="text-xs mt-1">
-                {kpis.percentOfLimit.toFixed(1)}% of allowed envelope used
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-start mt-4"
-            onClick={() => {
-              alert("Later this can open a list of approved CO/VOS items.");
-            }}
-          >
-            Details
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* CHANGE % OF PROJECT */}
-      <Card className="rounded-2xl h-full">
-        <CardContent className="p-4 flex flex-col justify-between h-full">
-          <div>
-            <p className="text-sm text-muted-foreground">Change % of Project</p>
-            <p className="text-xl font-semibold mt-1">
-              {kpis.percentageOfProject.toFixed(2)}%
-            </p>
-
-            <p className="text-xs text-muted-foreground mt-2">of 10% limit</p>
-
-            <div className="mt-2">
-              <Progress value={kpis.percentageOfProject} />
-              <p className="text-xs mt-1">
-                {kpis.percentageOfProject.toFixed(1)}% of percentage limit used
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* NEXT CC MEETING */}
-      <NextCcCard rows={rows} onOpenDetails={onOpenNextCc} />
-    </div>
-  );
-}
-
-// ==========================================
-// Main Component
-// ==========================================
-export default function ChangeOrdersDashboard({
-  initial,
-}: {
-  initial?: ChangeRecord[];
-}) {
-  const [stage] = useState<StageKey | "All">("All");
-  const [pkg, setPkg] = useState<PackageId | "All">("All");
-  const [q, setQ] = useState("");
-  const [rows] = useState<ChangeRecord[]>(initial ?? DEMO);
-  const [showNextCc, setShowNextCc] = useState(false);
-
-  const view = useMemo(
-    () =>
-      rows
-        .filter((r) => (stage === "All" ? true : r.stageKey === stage))
-        .filter((r) => (pkg === "All" ? true : r.package === pkg))
-        .filter((r) =>
-          q
-            ? `${r.id} ${r.title} ${r.sponsor ?? ""}`
-                .toLowerCase()
-                .includes(q.toLowerCase())
-            : true,
-        ),
-    [rows, stage, pkg, q],
-  );
-
-  const pcrRows = useMemo(
-    () => view.filter((r) => r.type === "PRC"),
-    [view],
-  );
-  const pcrToEiRows = useMemo(
-    () => pcrRows.filter((r) => r.target === "EI"),
-    [pcrRows],
-  );
-  const pcrToCoRows = useMemo(
-    () =>
-      pcrRows.filter(
-        (r) => r.target === "CO" || r.target === "VOS" || r.target === "AA",
-      ),
-    [pcrRows],
-  );
-
-  const completedRows = useMemo(
-    () =>
-      view.filter((r) => {
-        const isEICompleted =
-          r.stageKey === "EI" &&
-          (r.subStatus === "Issued" ||
-            r.subStatus === "To be Issued to Contractor");
-        const isCOOrAACompleted =
-          (r.stageKey === "CO_V_VOS" && r.subStatus === "Done") ||
-          (r.stageKey === "AA_SA" && r.subStatus === "Done");
-        return isEICompleted || isCOOrAACompleted;
-      }),
-    [view],
-  );
-
-  return (
-    <div className="p-4 md:p-6 space-y-4">
-      {/* Title */}
-      <div className="w-full text-center text-3xl font-semibold tracking-tight mb-2">
-        Change Management Dashboard
-      </div>
-
-      {/* Summary + KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch">
-        <SummaryCard rows={view} />
-        <div className="md:col-span-3">
-          <ProjectKPIs
-            rows={view}
-            onOpenNextCc={() => setShowNextCc(true)}
-          />
-        </div>
-      </div>
-
-      {/* Search + export */}
-      <Filters q={q} setQ={setQ} onExport={() => exportCSV(view)} />
-
-      {/* Main table + package filter */}
-      <Card className="rounded-2xl overflow-hidden">
-        <CardContent className="p-0">
-          {/* Package chips */}
-          <div className="px-4 pt-4 pb-2 bg-white">
-            <PackageChips selected={pkg} onSelect={setPkg} />
-          </div>
-
-          {/* PCR → EI section */}
-          <Card className="rounded-2xl border shadow-sm mb-6">
-            <CardContent className="p-0">
-              <section>
-                <PathTimeline
-                  label="PCRs → EI"
-                  stages={["PRC", "CC Outcome", "CEO / Board Memo", "EI"]}
-                />
-                <ChangeTableHeader />
-                {pcrToEiRows.length > 0 ? (
-                  pcrToEiRows.map((r) => (
-                    <Row
-                      key={r.id}
-                      r={r}
-                      mode="pcr"
-                      showMiddleColumn={false}
-                    />
-                  ))
-                ) : (
-                  <div className="px-4 py-4 text-xs text-neutral-500">
-                    No PCRs currently tagged as PCR → EI under the current
-                    filters.
-                  </div>
-                )}
-              </section>
-            </CardContent>
-          </Card>
-
-          {/* PCR → CO / V / VOS / AA-SA section */}
-          <Card className="rounded-2xl border shadow-sm mb-6">
-            <CardContent className="p-0">
-              <section>
-                <PathTimeline
-                  label="PCRs → CO / V / VOS / AA-SA"
-                  stages={[
-                    "PRC",
-                    "CC Outcome",
-                    "CEO / Board Memo",
-                    "CO / V / VOS or AA / SA",
-                  ]}
-                />
-                <ChangeTableHeader />
-                {pcrToCoRows.length > 0 ? (
-                  pcrToCoRows.map((r) => (
-                    <Row
-                      key={r.id}
-                      r={r}
-                      mode="pcr"
-                      showMiddleColumn={false}
-                    />
-                  ))
-                ) : (
-                  <div className="px-4 py-4 text-xs text-neutral-500">
-                    No PCRs currently tagged as PCR → CO / V / VOS / AA-SA after
-                    filters.
-                  </div>
-                )}
-              </section>
-            </CardContent>
-          </Card>
-
-          {/* Completed items section */}
-          <Card className="rounded-2xl border shadow-sm mb-6">
-            <CardContent className="p-0">
-              <section>
-                <PathTimeline
-                  label="Completed (EI / CO / V / VOS or AA / SA Issued)"
-                  stages={[
-                    "PRC",
-                    "CC Outcome",
-                    "CEO / Board Memo",
-                    "Issued Item (EI / CO / V / VOS / AA / SA)",
-                  ]}
-                />
-                <CompletedTableHeader />
-                {completedRows.length > 0 ? (
-                  completedRows.map((r) => <CompletedRow key={r.id} r={r} />)
-                ) : (
-                  <div className="px-4 py-4 text-xs text-neutral-500">
-                    No completed changes under the current filters.
-                  </div>
-                )}
-              </section>
-            </CardContent>
-          </Card>
-
-          {pcrRows.length === 0 && view.length > 0 && (
-            <div className="px-4 py-4 text-xs text-neutral-500">
-              Current filters match only non-PCR records (EI / CO etc.).
-            </div>
-          )}
-
-          {view.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground">
-              No records match the current filters.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Next CC Modal */}
-      {showNextCc && (
-        <NextCcModal
-          rows={view}
-          onClose={() => setShowNextCc(false)}
-        />
-      )}
-
-      {/* Footer note */}
-      <div className="text-xs text-muted-foreground">
-        Lifecycle covered: PRC → CC Outcome → CEO / Board Memo → EI →
-        CO/V/VOS → AA/SA. SLA &amp; progress are derived directly from the
-        stage and dates. PCRs are grouped by their path (PCRs → EI and PCRs → CO
-        / V / VOS / AA-SA), while the last table shows completed issued items
-        (EI / CO / V / VOS / AA / SA).
-      </div>
-    </div>
-  );
-}
